@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, symlink } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -38,9 +38,10 @@ describe("repository paths", () => {
 	it("resolves an existing directory within the workspace", async () => {
 		const workspace = await mkdtemp(join(tmpdir(), "codeowners-workspace-"));
 		await mkdir(join(workspace, "repository"));
+		const expected = await realpath(resolve(workspace, "repository"));
 
 		await expect(resolveRealPathWithin(workspace, "repository")).resolves.toBe(
-			resolve(workspace, "repository"),
+			expected,
 		);
 	});
 });
