@@ -1,0 +1,61 @@
+name: CODEOWNERS Guard
+description: Fast, GitHub-native CODEOWNERS syntax, coverage, and rule validation
+author: rarepops
+
+inputs:
+  github-token:
+    description: GitHub token used for authoritative syntax validation
+    required: false
+    default: ${{ github.token }}
+  path:
+    description: Repository path relative to GITHUB_WORKSPACE
+    required: false
+    default: .
+  codeowners:
+    description: Explicit CODEOWNERS path; otherwise GitHub's standard locations are searched
+    required: false
+  checks:
+    description: Comma-separated checks (syntax,duplicates,dangling,unowned)
+    required: false
+    default: syntax,duplicates,dangling,unowned
+  exclude:
+    description: Newline-separated gitignore patterns excluded from local file checks
+    required: false
+  repository:
+    description: GitHub repository in owner/name form
+    required: false
+    default: ${{ github.repository }}
+  ref:
+    description: GitHub branch, tag, or commit used for syntax validation
+    required: false
+    default: ${{ github.sha }}
+  github-api-url:
+    description: GitHub API URL, including for GitHub Enterprise Server
+    required: false
+    default: ${{ github.api_url }}
+  fail-on:
+    description: Failure threshold (warning or error)
+    required: false
+    default: warning
+  max-annotations:
+    description: Maximum number of workflow annotations and summary rows
+    required: false
+    default: "50"
+
+outputs:
+  valid:
+    description: Whether validation found no issues
+  issue-count:
+    description: Total number of issues
+  error-count:
+    description: Number of error-severity issues
+  warning-count:
+    description: Number of warning-severity issues
+
+runs:
+  using: node24
+  main: dist/index.cjs
+
+branding:
+  icon: shield
+  color: green

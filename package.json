@@ -1,0 +1,52 @@
+{
+  "name": "codeowners-guard",
+  "version": "0.1.0",
+  "description": "Fast, GitHub-native CODEOWNERS validation",
+  "type": "module",
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "rarepops",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rarepops/codeowners-guard.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rarepops/codeowners-guard/issues"
+  },
+  "homepage": "https://github.com/rarepops/codeowners-guard#readme",
+  "keywords": [
+    "codeowners",
+    "github-action",
+    "lint",
+    "validation"
+  ],
+  "bin": {
+    "codeowners-guard": "./dist/cli.js"
+  },
+  "files": [
+    "dist/cli.js",
+    "dist/cli.js.map"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build",
+    "format": "biome check --write src test scripts",
+    "lint": "biome check src test scripts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.12",
+    "@types/node": "22.20.1",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.0",
+    "yaml": "2.9.0"
+  },
+  "dependencies": {
+    "@actions/core": "3.0.1",
+    "ignore": "7.0.8"
+  }
+}
