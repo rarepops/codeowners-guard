@@ -1,6 +1,6 @@
 {
   "name": "codeowners-guard",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "GitHub-native CODEOWNERS syntax, coverage, and rule validation",
   "type": "module",
   "license": "SEE LICENSE IN LICENSE.md",
@@ -24,7 +24,9 @@
     "codeowners-guard": "./dist/cli.js"
   },
   "files": [
-    "dist/cli.js"
+    "assets/codeowners-guard.png",
+    "dist/cli.js",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "engines": {
     "node": ">=24"
@@ -32,16 +34,18 @@
   "scripts": {
     "bench": "vitest bench --run",
     "build": "node scripts/build.mjs",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build",
+    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run build",
     "format": "biome check --write src test scripts",
     "lint": "biome check src test scripts",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@actions/core": "3.0.1",
     "@biomejs/biome": "2.5.12",
     "@types/node": "24.13.3",
+    "@vitest/coverage-v8": "5.0.0",
     "esbuild": "0.28.2",
     "ignore": "7.0.8",
     "typescript": "7.0.2",

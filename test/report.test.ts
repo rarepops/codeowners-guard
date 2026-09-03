@@ -16,6 +16,9 @@ describe("formatTextReport", () => {
 					suggestion: "Use /src/",
 				},
 			],
+			issueCount: 1,
+			errorCount: 1,
+			warningCount: 0,
 			stats: { files: 0, rules: 1, matchedRules: 0 },
 		});
 

@@ -3,15 +3,26 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 const cliPath = resolve("dist/cli.js");
 
-beforeAll(() => {
-	execFileSync(process.execPath, ["scripts/build.mjs"], { stdio: "ignore" });
-});
-
 describe("packaged CLI", () => {
+	it("renders aligned help with authentication settings separated", () => {
+		const result = spawnSync(process.execPath, [cliPath, "--help"], {
+			encoding: "utf8",
+		});
+
+		expect(result.status).toBe(0);
+		expect(result.stdout).not.toContain("\t");
+		expect(result.stdout).toContain(
+			"      --max-issues <count>  Maximum retained issue details",
+		);
+		expect(result.stdout).toContain(
+			"Environment:\n  GITHUB_TOKEN or GH_TOKEN  Token for authenticated GitHub API access",
+		);
+	});
+
 	it("rejects command-line tokens without echoing the secret", () => {
 		const result = spawnSync(
 			process.execPath,
@@ -22,6 +33,15 @@ describe("packaged CLI", () => {
 		expect(result.status).toBe(2);
 		expect(result.stderr).toContain("Unknown option '--token'");
 		expect(result.stderr).not.toContain("should-not-appear");
+	});
+
+	it("names max-issues in validation errors", () => {
+		const result = spawnSync(process.execPath, [cliPath, "--max-issues=-1"], {
+			encoding: "utf8",
+		});
+
+		expect(result.status).toBe(2);
+		expect(result.stderr).toContain("max-issues must be");
 	});
 
 	it("reports local issues as JSON and applies the failure threshold", async () => {
@@ -61,6 +81,20 @@ describe("packaged CLI", () => {
 			],
 			{ encoding: "utf8" },
 		);
+		const bounded = spawnSync(
+			process.execPath,
+			[
+				cliPath,
+				root,
+				"--format",
+				"json",
+				"--checks",
+				"duplicates,dangling,unowned",
+				"--max-issues",
+				"1",
+			],
+			{ encoding: "utf8" },
+		);
 
 		expect(failing.status).toBe(1);
 		expect(JSON.parse(failing.stdout)).toEqual(
@@ -76,5 +110,14 @@ describe("packaged CLI", () => {
 		);
 		expect(warningOnly.status).toBe(0);
 		expect(warningOnly.stdout).toContain("issue");
+		expect(bounded.status).toBe(1);
+		expect(JSON.parse(bounded.stdout)).toEqual(
+			expect.objectContaining({
+				valid: false,
+				issueCount: 4,
+				warningCount: 4,
+				issues: [expect.anything()],
+			}),
+		);
 	});
 });

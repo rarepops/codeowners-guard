@@ -36,7 +36,7 @@ jobs:
       - name: Verify package signatures
         run: npm audit signatures
       - name: Verify committed bundles
-        run: git diff --exit-code -- dist
+        run: git diff --exit-code -- dist THIRD_PARTY_NOTICES.md
 
       - name: Resolve package version
         id: package
@@ -91,6 +91,13 @@ jobs:
           name: codeowners-guard-${{ needs.build.outputs.version }}
           path: release
 
+      - name: Set up Node.js for npm trusted publishing
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
       - name: Verify artifact checksums
         working-directory: release
         run: sha256sum --check SHA256SUMS.txt
@@ -99,6 +106,25 @@ jobs:
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: release/*
+
+      - name: Publish package to npm
+        working-directory: release
+        env:
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          package="codeowners-guard-$RELEASE_VERSION.tgz"
+          expected_integrity="$(node -e 'const { createHash } = require("node:crypto"); const { readFileSync } = require("node:fs"); process.stdout.write(`sha512-${createHash("sha512").update(readFileSync(process.argv[1])).digest("base64")}`)' "$package")"
+          published_integrity="$(npm view "codeowners-guard@$RELEASE_VERSION" dist.integrity 2>/dev/null || true)"
+
+          if [[ -n "$published_integrity" ]]; then
+            if [[ "$published_integrity" != "$expected_integrity" ]]; then
+              echo "npm already contains codeowners-guard@$RELEASE_VERSION with different contents" >&2
+              exit 1
+            fi
+            echo "codeowners-guard@$RELEASE_VERSION is already published with matching integrity"
+          else
+            npm publish "$package" --access public
+          fi
 
       - name: Create GitHub release
         env:

@@ -20,6 +20,11 @@ interface PackageMetadata {
 	packageManager: string;
 	engines: { node: string };
 	devDependencies: Record<string, string>;
+	files: string[];
+}
+
+interface SourceMap {
+	sources: string[];
 }
 
 describe("GitHub metadata", () => {
@@ -58,6 +63,19 @@ describe("GitHub metadata", () => {
 		}
 	});
 
+	it("publishes the validated tarball to npm through trusted publishing", async () => {
+		const release = await readFile(
+			resolve(".github/workflows/release.yml"),
+			"utf8",
+		);
+
+		expect(release).toContain("if: github.ref_type == 'tag'");
+		expect(release).toContain("id-token: write");
+		expect(release).toContain("registry-url: https://registry.npmjs.org");
+		expect(release).toContain('npm publish "$package" --access public');
+		expect(release).not.toMatch(/NPM_TOKEN|NODE_AUTH_TOKEN/u);
+	});
+
 	it("stores the packaged CLI as executable", () => {
 		const entry = execFileSync("git", ["ls-files", "--stage", "dist/cli.js"], {
 			encoding: "utf8",
@@ -84,5 +102,67 @@ describe("GitHub metadata", () => {
 		expect(packageMetadata.engines.node).toBe(">=24");
 		expect(packageMetadata.packageManager).toMatch(/^npm@11\./u);
 		expect(packageMetadata.devDependencies["@types/node"]).toMatch(/^24\./u);
+	});
+
+	it("ships notices for every package embedded in the bundles", async () => {
+		const [cliMapSource, actionMapSource, notices] = await Promise.all([
+			readFile(resolve("dist/cli.js.map"), "utf8"),
+			readFile(resolve("dist/index.cjs.map"), "utf8"),
+			readFile(resolve("THIRD_PARTY_NOTICES.md"), "utf8"),
+		]);
+		const sources = [cliMapSource, actionMapSource].flatMap(
+			(source) => (JSON.parse(source) as SourceMap).sources,
+		);
+		const packageNames = [
+			...new Set(
+				sources.flatMap((source) => {
+					const parts = source.replaceAll("\\", "/").split("/");
+					const index = parts.lastIndexOf("node_modules");
+					const first = parts[index + 1];
+					const second = parts[index + 2];
+					if (index === -1 || first === undefined) {
+						return [];
+					}
+					return [
+						first.startsWith("@") && second !== undefined
+							? `${first}/${second}`
+							: first,
+					];
+				}),
+			),
+		].sort();
+		const noticedPackages = [...notices.matchAll(/^## (\S+) \S+$/gmu)]
+			.map((match) => match[1])
+			.filter((name): name is string => name !== undefined)
+			.sort();
+
+		expect(packageNames).toEqual([
+			"@actions/core",
+			"@actions/exec",
+			"@actions/http-client",
+			"@actions/io",
+			"ignore",
+			"tunnel",
+			"undici",
+		]);
+		expect(noticedPackages).toEqual(packageNames);
+		expect(notices).toContain("## ignore 7.0.8");
+	});
+
+	it("includes the logo and notices in the npm package", async () => {
+		const packageMetadata = JSON.parse(
+			await readFile(resolve("package.json"), "utf8"),
+		) as PackageMetadata;
+
+		expect(packageMetadata.files).toEqual(
+			expect.arrayContaining([
+				"assets/codeowners-guard.png",
+				"dist/cli.js",
+				"THIRD_PARTY_NOTICES.md",
+			]),
+		);
+		await expect(
+			readFile(resolve("assets/codeowners-guard.png")),
+		).resolves.not.toHaveLength(0);
 	});
 });

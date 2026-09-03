@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.1 - 2026-09-03
+
+### Added
+
+- Deterministic third-party notices generated from the packages embedded in release bundles.
+- OIDC trusted publishing of validated release tarballs to npm.
+- V8 coverage reporting with enforced global thresholds.
+- Check semantics, troubleshooting guidance, and a least-privilege workflow example.
+- Project branding in the README and npm package.
+
+### Changed
+
+- Bound retained issue details while preserving exact issue counts and failure behavior.
+- Retry GitHub `429`, `502`, `503`, and `504` responses with capped backoff and `Retry-After` support.
+- Add the CLI `--max-issues` option, with a default of 1,000 and maximum of 10,000.
+
+### Fixed
+
+- Align CLI help output and separate environment-variable guidance from option descriptions.
+- Name `max-issues` correctly in CLI validation errors.
+
 ## 0.1.0 - 2026-09-03
 
 ### Added

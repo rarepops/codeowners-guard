@@ -2,7 +2,12 @@
 
 import { parseArgs } from "node:util";
 
-import { localCheckNames, parseChecks, parseSeverity } from "./config.js";
+import {
+	localCheckNames,
+	parseChecks,
+	parseNonNegativeInteger,
+	parseSeverity,
+} from "./config.js";
 import { escapeTerminalText } from "./display.js";
 import { shouldFail } from "./model.js";
 import { formatTextReport } from "./report.js";
@@ -21,6 +26,7 @@ async function main(): Promise<void> {
 			"fail-on": { type: "string" },
 			format: { type: "string", short: "f" },
 			help: { type: "boolean", short: "h" },
+			"max-issues": { type: "string" },
 			ref: { type: "string" },
 			repository: { type: "string", short: "r" },
 			version: { type: "boolean", short: "v" },
@@ -38,6 +44,12 @@ async function main(): Promise<void> {
 
 	const checks = parseChecks(values.checks ?? "", localCheckNames);
 	const failOn = parseSeverity(values["fail-on"] ?? "", "warning");
+	const maxIssues = parseNonNegativeInteger(
+		values["max-issues"] ?? "",
+		1_000,
+		10_000,
+		"max-issues",
+	);
 	const format = values.format ?? "text";
 	if (format !== "text" && format !== "json") {
 		throw new Error('format must be either "text" or "json"');
@@ -54,6 +66,7 @@ async function main(): Promise<void> {
 		repositoryPath: positionals[0] ?? ".",
 		checks,
 		exclude: values.exclude ?? [],
+		maxIssues,
 		...(values.codeowners === undefined
 			? {}
 			: { codeownersPath: values.codeowners }),
@@ -74,14 +87,10 @@ async function main(): Promise<void> {
 
 	console.log(
 		format === "json"
-			? JSON.stringify(
-					{ valid: result.issues.length === 0, ...result },
-					null,
-					2,
-				)
+			? JSON.stringify({ valid: result.issueCount === 0, ...result }, null, 2)
 			: formatTextReport(result),
 	);
-	process.exitCode = shouldFail(result.issues, failOn) ? 1 : 0;
+	process.exitCode = shouldFail(result, failOn) ? 1 : 0;
 }
 
 const helpText = `codeowners-guard [repository-path] [options]
@@ -93,13 +102,16 @@ Options:
       --codeowners <path>   Use a specific CODEOWNERS file
       --exclude <pattern>   Exclude files from local checks (repeatable)
       --fail-on <severity>  Failure threshold: warning or error (default: warning)
+      --max-issues <count>  Maximum retained issue details (default: 1000, max: 10000)
   -f, --format <format>     Output format: text or json (default: text)
   -r, --repository <repo>   GitHub owner/name, required by the syntax check
       --ref <ref>           GitHub branch, tag, or commit to validate
-							Set GITHUB_TOKEN or GH_TOKEN for authenticated access
       --api-url <url>       GitHub API URL (default: https://api.github.com)
   -v, --version             Print the version
-  -h, --help                Show this help`;
+  -h, --help                Show this help
+
+Environment:
+  GITHUB_TOKEN or GH_TOKEN  Token for authenticated GitHub API access`;
 
 main().catch((error: unknown) => {
 	console.error(

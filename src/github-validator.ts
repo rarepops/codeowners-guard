@@ -2,6 +2,11 @@ import type { ValidationIssue } from "./model.js";
 
 const maxResponseBytes = 1024 * 1024;
 const requestTimeoutMs = 15_000;
+const maximumAttempts = 3;
+const maximumRetryDelayMs = 10_000;
+const retryableStatuses = new Set([429, 502, 503, 504]);
+
+type Sleep = (milliseconds: number) => Promise<unknown>;
 
 interface GitHubCodeownersError {
 	line: number;
@@ -26,6 +31,8 @@ export interface GitHubValidationOptions {
 export async function fetchGitHubSyntaxIssues(
 	options: GitHubValidationOptions,
 	fetchImplementation: typeof fetch = fetch,
+	sleepImplementation: Sleep = (milliseconds) =>
+		new Promise((resolve) => setTimeout(resolve, milliseconds)),
 ): Promise<ValidationIssue[]> {
 	const [owner, repository, extra] = options.repository.split("/");
 	if (
@@ -54,30 +61,13 @@ export async function fetchGitHubSyntaxIssues(
 		headers.set("authorization", `Bearer ${options.token}`);
 	}
 
-	let response: Response;
-	try {
-		response = await fetchImplementation(url, {
-			headers,
-			redirect: "error",
-			signal: AbortSignal.timeout(requestTimeoutMs),
-		});
-	} catch (error) {
-		if (
-			error instanceof Error &&
-			(error.name === "TimeoutError" || error.name === "AbortError")
-		) {
-			throw new Error(
-				`GitHub CODEOWNERS validation timed out after ${requestTimeoutMs / 1000} seconds`,
-				{ cause: error },
-			);
-		}
-		throw new Error("GitHub CODEOWNERS validation request failed", {
-			cause: error,
-		});
-	}
-	if (!response.ok) {
-		throw createHttpError(response.status, options.repository);
-	}
+	const response = await fetchWithRetries(
+		url,
+		headers,
+		options.repository,
+		fetchImplementation,
+		sleepImplementation,
+	);
 
 	const body = await readJsonResponse(response);
 	if (!isGitHubResponse(body)) {
@@ -99,6 +89,72 @@ export async function fetchGitHubSyntaxIssues(
 		}
 		return issue;
 	});
+}
+
+async function fetchWithRetries(
+	url: URL,
+	headers: Headers,
+	repository: string,
+	fetchImplementation: typeof fetch,
+	sleepImplementation: Sleep,
+): Promise<Response> {
+	for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
+		let response: Response;
+		try {
+			response = await fetchImplementation(url, {
+				headers,
+				redirect: "error",
+				signal: AbortSignal.timeout(requestTimeoutMs),
+			});
+		} catch (error) {
+			if (
+				error instanceof Error &&
+				(error.name === "TimeoutError" || error.name === "AbortError")
+			) {
+				throw new Error(
+					`GitHub CODEOWNERS validation timed out after ${requestTimeoutMs / 1000} seconds`,
+					{ cause: error },
+				);
+			}
+			throw new Error("GitHub CODEOWNERS validation request failed", {
+				cause: error,
+			});
+		}
+
+		if (response.ok) {
+			return response;
+		}
+		if (
+			!retryableStatuses.has(response.status) ||
+			attempt === maximumAttempts
+		) {
+			await response.body?.cancel().catch(() => undefined);
+			throw createHttpError(response.status, repository);
+		}
+
+		await response.body?.cancel().catch(() => undefined);
+		await sleepImplementation(retryDelay(response, attempt));
+	}
+
+	throw new Error("GitHub CODEOWNERS validation exhausted its retry budget");
+}
+
+function retryDelay(response: Response, attempt: number): number {
+	const retryAfter = response.headers.get("retry-after")?.trim();
+	let milliseconds: number | undefined;
+	if (retryAfter !== undefined && /^\d+$/u.test(retryAfter)) {
+		milliseconds = Number(retryAfter) * 1_000;
+	} else if (retryAfter !== undefined) {
+		const retryAt = Date.parse(retryAfter);
+		if (Number.isFinite(retryAt)) {
+			milliseconds = Math.max(0, retryAt - Date.now());
+		}
+	}
+
+	return Math.min(
+		milliseconds ?? 250 * 2 ** (attempt - 1),
+		maximumRetryDelayMs,
+	);
 }
 
 function buildRequestUrl(

@@ -34,11 +34,10 @@ export function parseCodeowners(source: string): CodeownersRule[] {
 	return rules;
 }
 
-export function findDuplicatePatterns(
+export function* findDuplicatePatterns(
 	rules: readonly CodeownersRule[],
-): DuplicatePattern[] {
+): Generator<DuplicatePattern> {
 	const firstLineByPattern = new Map<string, number>();
-	const duplicates: DuplicatePattern[] = [];
 
 	for (const rule of rules) {
 		const firstLine = firstLineByPattern.get(rule.pattern);
@@ -47,13 +46,11 @@ export function findDuplicatePatterns(
 			continue;
 		}
 
-		duplicates.push({
+		yield {
 			line: rule.line,
 			message: `Pattern ${JSON.stringify(rule.pattern)} duplicates line ${firstLine}`,
-		});
+		};
 	}
-
-	return duplicates;
 }
 
 function splitFields(line: string): string[] {

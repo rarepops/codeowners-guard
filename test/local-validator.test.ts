@@ -42,6 +42,11 @@ describe("validateLocal", () => {
 			}),
 		]);
 		expect(result.stats).toEqual({ files: 3, rules: 5, matchedRules: 4 });
+		expect(result).toMatchObject({
+			issueCount: 3,
+			errorCount: 0,
+			warningCount: 3,
+		});
 	});
 
 	it("respects disabled checks, exclusions, and skipped syntax lines", () => {
@@ -82,5 +87,23 @@ describe("validateLocal", () => {
 		});
 
 		expect(result.stats.files).toBe(1);
+	});
+
+	it("counts every finding while retaining only the configured sample", () => {
+		const result = validateLocal({
+			source: "",
+			codeownersPath: "CODEOWNERS",
+			files: Array.from(
+				{ length: 10_000 },
+				(_, index) => `src/file-${index}.ts`,
+			),
+			checks: new Set<CheckName>(["unowned"]),
+			maxIssues: 3,
+		});
+
+		expect(result.issues).toHaveLength(3);
+		expect(result.issueCount).toBe(10_000);
+		expect(result.warningCount).toBe(10_000);
+		expect(result.errorCount).toBe(0);
 	});
 });

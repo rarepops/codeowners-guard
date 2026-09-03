@@ -66,14 +66,10 @@ describe("runAction", () => {
 					line: 4,
 					message: "Duplicate pattern",
 				},
-				{
-					check: "unowned",
-					code: "unowned-file",
-					severity: "warning",
-					path: "src/app.ts",
-					message: "Unowned file",
-				},
 			],
+			issueCount: 2,
+			errorCount: 0,
+			warningCount: 2,
 			stats: { files: 5, rules: 3, matchedRules: 2 },
 		});
 
@@ -83,6 +79,7 @@ describe("runAction", () => {
 			expect.objectContaining({
 				checks: new Set(["duplicates", "unowned"]),
 				exclude: ["dist/"],
+				maxIssues: 1,
 			}),
 		);
 		expect(core.warning).toHaveBeenCalledOnce();
@@ -117,6 +114,9 @@ describe("runAction", () => {
 					suggestion: "Use /docs/",
 				},
 			],
+			issueCount: 1,
+			errorCount: 1,
+			warningCount: 0,
 			stats: { files: 0, rules: 1, matchedRules: 0 },
 		});
 
@@ -159,6 +159,9 @@ describe("runAction", () => {
 					message: "</td><script>alert(1)</script>\nnext",
 				},
 			],
+			issueCount: 1,
+			errorCount: 1,
+			warningCount: 0,
 			stats: { files: 0, rules: 1, matchedRules: 0 },
 		});
 
@@ -184,21 +187,20 @@ describe("runAction", () => {
 		core.inputs.set("max-annotations", "0");
 		validateRepository.mockResolvedValue({
 			codeownersPath: "CODEOWNERS",
-			issues: [
-				{
-					check: "duplicates",
-					code: "duplicate-pattern",
-					severity: "warning",
-					path: "CODEOWNERS",
-					message: "Duplicate",
-				},
-			],
+			issues: [],
+			issueCount: 1,
+			errorCount: 0,
+			warningCount: 1,
 			stats: { files: 0, rules: 2, matchedRules: 0 },
 		});
 
 		await runAction();
 
 		expect(core.info).toHaveBeenCalledWith("1 issue omitted from annotations");
+		expect(core.setFailed).toHaveBeenCalledWith(
+			"CODEOWNERS validation found 1 issue",
+		);
+		expect(core.setOutput).toHaveBeenCalledWith("issue-count", 1);
 	});
 
 	it("rejects repository paths outside GITHUB_WORKSPACE", async () => {

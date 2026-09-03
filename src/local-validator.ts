@@ -3,8 +3,7 @@ import ignore from "ignore";
 import { compileRules } from "./matcher.js";
 import {
 	type CheckName,
-	compareValidationIssues,
-	type ValidationIssue,
+	IssueCollector,
 	type ValidationResult,
 } from "./model.js";
 import type { CodeownersRule } from "./parser.js";
@@ -17,6 +16,7 @@ export interface LocalValidationOptions {
 	files: readonly string[];
 	checks: ReadonlySet<CheckName>;
 	exclude?: readonly string[];
+	maxIssues?: number;
 	skipLines?: ReadonlySet<number>;
 }
 
@@ -36,19 +36,19 @@ export function validateLocal(
 		: [];
 	const matchedRules = new Uint8Array(rules.length);
 	let matchedRuleCount = 0;
-	const issues: ValidationIssue[] = [];
+	const issues = new IssueCollector(options.maxIssues ?? 1_000);
 
 	if (options.checks.has("duplicates")) {
-		issues.push(
-			...findDuplicatePatterns(rules).map((duplicate) => ({
+		for (const duplicate of findDuplicatePatterns(rules)) {
+			issues.add({
 				check: "duplicates" as const,
 				code: "duplicate-pattern",
 				severity: "warning" as const,
 				path: options.codeownersPath,
 				line: duplicate.line,
 				message: duplicate.message,
-			})),
-		);
+			});
+		}
 	}
 
 	for (const file of files) {
@@ -70,7 +70,7 @@ export function validateLocal(
 
 		if (checksUnowned) {
 			if (owningRule === undefined || owningRule.owners.length === 0) {
-				issues.push({
+				issues.add({
 					check: "unowned",
 					code: "unowned-file",
 					severity: "warning",
@@ -88,7 +88,7 @@ export function validateLocal(
 		for (let index = 0; index < rules.length; index += 1) {
 			const rule = rules[index];
 			if (rule !== undefined && matchedRules[index] === 0) {
-				issues.push({
+				issues.add({
 					check: "dangling",
 					code: "dangling-pattern",
 					severity: "warning",
@@ -101,7 +101,10 @@ export function validateLocal(
 	}
 
 	return {
-		issues: issues.sort(compareValidationIssues),
+		issues: issues.issues,
+		issueCount: issues.issueCount,
+		errorCount: issues.errorCount,
+		warningCount: issues.warningCount,
 		stats: {
 			files: files.length,
 			rules: rules.length,

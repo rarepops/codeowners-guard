@@ -26,14 +26,16 @@ describe("configuration parsing", () => {
 		expect(parseSeverity("ERROR", "warning")).toBe("error");
 		expect(() => parseSeverity("notice", "warning")).toThrow("fail-on");
 
-		expect(parseNonNegativeInteger("", 50, 100)).toBe(50);
-		expect(parseNonNegativeInteger("0", 50, 100)).toBe(0);
-		expect(() => parseNonNegativeInteger("-1", 50, 100)).toThrow(
-			"max-annotations",
-		);
-		expect(() => parseNonNegativeInteger("1.5", 50, 100)).toThrow(
-			"max-annotations",
-		);
-		expect(() => parseNonNegativeInteger("101", 50, 100)).toThrow("up to 100");
+		expect(parseNonNegativeInteger("", 50, 100, "max-annotations")).toBe(50);
+		expect(parseNonNegativeInteger("0", 50, 100, "max-annotations")).toBe(0);
+		expect(() =>
+			parseNonNegativeInteger("-1", 50, 100, "max-annotations"),
+		).toThrow("max-annotations");
+		expect(() =>
+			parseNonNegativeInteger("1.5", 50, 100, "max-annotations"),
+		).toThrow("max-annotations");
+		expect(() =>
+			parseNonNegativeInteger("101", 50, 100, "max-annotations"),
+		).toThrow("up to 100");
 	});
 });

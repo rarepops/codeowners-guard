@@ -5,7 +5,7 @@ import {
 import { validateLocal } from "./local-validator.js";
 import {
 	type CheckName,
-	compareValidationIssues,
+	IssueCollector,
 	type ValidationIssue,
 	type ValidationStats,
 } from "./model.js";
@@ -18,11 +18,15 @@ export interface RepositoryValidationOptions {
 	checks: ReadonlySet<CheckName>;
 	exclude?: readonly string[];
 	github?: GitHubValidationOptions;
+	maxIssues?: number;
 }
 
 export interface RepositoryValidationResult {
 	codeownersPath: string;
 	issues: ValidationIssue[];
+	issueCount: number;
+	errorCount: number;
+	warningCount: number;
 	stats: ValidationStats;
 }
 
@@ -66,12 +70,23 @@ export async function validateRepository(
 		files,
 		checks: localChecks,
 		exclude: options.exclude ?? [],
+		...(options.maxIssues === undefined
+			? {}
+			: { maxIssues: options.maxIssues }),
 		skipLines: invalidLines,
 	});
+	const issues = new IssueCollector(options.maxIssues ?? 1_000);
+	for (const issue of syntaxIssues) {
+		issues.add(issue);
+	}
+	issues.merge(local);
 
 	return {
 		codeownersPath: codeowners.relativePath,
-		issues: [...syntaxIssues, ...local.issues].sort(compareValidationIssues),
+		issues: issues.issues,
+		issueCount: issues.issueCount,
+		errorCount: issues.errorCount,
+		warningCount: issues.warningCount,
 		stats: local.stats,
 	};
 }

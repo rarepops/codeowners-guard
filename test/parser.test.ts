@@ -34,7 +34,7 @@ describe("parseCodeowners", () => {
 		);
 
 		expect(rules[1]).toEqual({ line: 2, pattern: "*.md", owners: [] });
-		expect(findDuplicatePatterns(rules)).toEqual([
+		expect([...findDuplicatePatterns(rules)]).toEqual([
 			{
 				line: 3,
 				message: 'Pattern "*.ts" duplicates line 1',

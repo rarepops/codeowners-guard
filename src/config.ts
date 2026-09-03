@@ -43,6 +43,7 @@ export function parseNonNegativeInteger(
 	value: string,
 	fallback: number,
 	maximum: number,
+	optionName: string,
 ): number {
 	if (value.trim() === "") {
 		return fallback;
@@ -51,7 +52,7 @@ export function parseNonNegativeInteger(
 	const parsed = Number(value);
 	if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > maximum) {
 		throw new Error(
-			`max-annotations must be a non-negative integer up to ${maximum}`,
+			`${optionName} must be a non-negative integer up to ${maximum}`,
 		);
 	}
 	return parsed;

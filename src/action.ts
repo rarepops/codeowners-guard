@@ -6,7 +6,7 @@ import {
 	parseSeverity,
 } from "./config.js";
 import { escapeHtmlText, escapeTerminalText } from "./display.js";
-import { checkNames, shouldFail, type ValidationIssue } from "./model.js";
+import { checkNames, shouldFail } from "./model.js";
 import { resolveRealPathWithin } from "./path.js";
 import { formatIssueMessage } from "./report.js";
 import {
@@ -28,6 +28,7 @@ export async function runAction(): Promise<void> {
 		core.getInput("max-annotations"),
 		50,
 		100,
+		"max-annotations",
 	);
 	const repository =
 		core.getInput("repository") || process.env.GITHUB_REPOSITORY || "";
@@ -47,6 +48,7 @@ export async function runAction(): Promise<void> {
 		repositoryPath,
 		checks,
 		exclude: core.getMultilineInput("exclude"),
+		maxIssues: maxAnnotations,
 		...(requestedCodeownersPath === ""
 			? {}
 			: { codeownersPath: requestedCodeownersPath }),
@@ -62,26 +64,23 @@ export async function runAction(): Promise<void> {
 			: {}),
 	});
 
-	emitAnnotations(result.issues, maxAnnotations);
-	await writeJobSummary(result, maxAnnotations);
+	emitAnnotations(result);
+	await writeJobSummary(result);
 	setOutputs(result);
 
-	if (shouldFail(result.issues, failOn)) {
+	if (shouldFail(result, failOn)) {
 		core.setFailed(
-			`CODEOWNERS validation found ${result.issues.length} issue${result.issues.length === 1 ? "" : "s"}`,
+			`CODEOWNERS validation found ${result.issueCount} issue${result.issueCount === 1 ? "" : "s"}`,
 		);
 	} else {
 		core.info(
-			`CODEOWNERS validation passed with ${result.issues.length} warning(s)`,
+			`CODEOWNERS validation passed with ${result.warningCount} warning(s)`,
 		);
 	}
 }
 
-function emitAnnotations(
-	issues: readonly ValidationIssue[],
-	maximum: number,
-): void {
-	for (const issue of issues.slice(0, maximum)) {
+function emitAnnotations(result: RepositoryValidationResult): void {
+	for (const issue of result.issues) {
 		const properties: core.AnnotationProperties = {
 			title: `CODEOWNERS ${issue.check}`,
 			file: escapeTerminalText(issue.path),
@@ -103,22 +102,21 @@ function emitAnnotations(
 		}
 	}
 
-	if (issues.length > maximum) {
-		const omitted = issues.length - maximum;
+	if (result.issueCount > result.issues.length) {
+		const omitted = result.issueCount - result.issues.length;
 		core.info(
-			`${omitted}${maximum === 0 ? "" : " additional"} issue${omitted === 1 ? "" : "s"} omitted from annotations`,
+			`${omitted}${result.issues.length === 0 ? "" : " additional"} issue${omitted === 1 ? "" : "s"} omitted from annotations`,
 		);
 	}
 }
 
 async function writeJobSummary(
 	result: RepositoryValidationResult,
-	maximum: number,
 ): Promise<void> {
 	core.summary
 		.addHeading("CODEOWNERS Guard", 2)
 		.addRaw(
-			`${result.issues.length} issue(s), ${result.stats.files} tracked file(s), ${result.stats.rules} rule(s).\n`,
+			`${result.issueCount} issue(s), ${result.stats.files} tracked file(s), ${result.stats.rules} rule(s).\n`,
 		);
 
 	if (result.issues.length > 0) {
@@ -129,30 +127,27 @@ async function writeJobSummary(
 				{ data: "Location", header: true },
 				{ data: "Message", header: true },
 			],
-			...result.issues
-				.slice(0, maximum)
-				.map((issue) => [
-					issue.severity,
-					issue.check,
-					escapeHtmlText(
-						`${issue.path}${issue.line === undefined ? "" : `:${issue.line}`}`,
-					),
-					escapeHtmlText(formatIssueMessage(issue)),
-				]),
+			...result.issues.map((issue) => [
+				issue.severity,
+				issue.check,
+				escapeHtmlText(
+					`${issue.path}${issue.line === undefined ? "" : `:${issue.line}`}`,
+				),
+				escapeHtmlText(formatIssueMessage(issue)),
+			]),
 		]);
-	} else {
+	} else if (result.issueCount === 0) {
 		core.summary.addRaw("No issues found.\n");
+	} else {
+		core.summary.addRaw("Issue details were omitted by max-annotations.\n");
 	}
 
 	await core.summary.write();
 }
 
 function setOutputs(result: RepositoryValidationResult): void {
-	const errorCount = result.issues.filter(
-		(issue) => issue.severity === "error",
-	).length;
-	core.setOutput("valid", result.issues.length === 0);
-	core.setOutput("issue-count", result.issues.length);
-	core.setOutput("error-count", errorCount);
-	core.setOutput("warning-count", result.issues.length - errorCount);
+	core.setOutput("valid", result.issueCount === 0);
+	core.setOutput("issue-count", result.issueCount);
+	core.setOutput("error-count", result.errorCount);
+	core.setOutput("warning-count", result.warningCount);
 }

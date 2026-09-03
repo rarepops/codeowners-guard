@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/codeowners-guard.png" alt="CODEOWNERS Guard" width="760" />
+</p>
+
 <h1 align="center">CODEOWNERS Guard</h1>
 
 <p align="center"><strong>Fast, GitHub-native validation for the CODEOWNERS file that GitHub will actually use.</strong></p>
@@ -42,6 +46,8 @@ Rules use GitHub's last-match-wins behavior. CODEOWNERS Guard searches the stand
 
 When the `syntax` check is disabled, local checks assume the remaining CODEOWNERS lines are valid. Keep `syntax` enabled in the Action, or validate the committed ref with GitHub before relying on local-only coverage results.
 
+See the [check reference](docs/checks.md) for exact matching, exclusion, and result-limit behavior.
+
 ## GitHub Action
 
 ```yaml
@@ -60,7 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: rarepops/codeowners-guard@v0.1.0
+      - uses: rarepops/codeowners-guard@v0.1.1
         with:
           checks: syntax,duplicates,dangling,unowned
           exclude: |
@@ -68,7 +74,7 @@ jobs:
             coverage/
 ```
 
-For the strongest supply-chain pinning, replace `v0.1.0` with its full commit SHA.
+For the strongest supply-chain pinning, replace `v0.1.1` with its full commit SHA. A complete least-privilege workflow is available in [examples/codeowners.yml](examples/codeowners.yml).
 
 The action adds file annotations and a job summary. Its default token is `${{ github.token }}`, and the workflow only needs `contents: read`.
 
@@ -87,6 +93,8 @@ The Action takes its API endpoint from GitHub's runner environment. It does not 
 | `ref` | `${{ github.sha }}` | Branch, tag, or commit used by the syntax check |
 | `fail-on` | `warning` | Failure threshold: `warning` or `error` |
 | `max-annotations` | `50` | Maximum workflow annotations and summary rows, up to `100` |
+
+Annotation limits do not change validation counts or failure behavior.
 
 ### Outputs
 
@@ -122,7 +130,9 @@ GITHUB_TOKEN=ghp_example node dist/cli.js . \
 
 Tokens are accepted only through `GITHUB_TOKEN` or `GH_TOKEN`; command-line token arguments are deliberately unsupported so credentials do not enter shell history or process listings.
 
-Use `--fail-on error` to report local warnings without returning a failing exit status. Exit code `1` means validation failed, and exit code `2` means the command could not run.
+Use `--max-issues` to retain up to 10,000 issue details in text or JSON output. The default is 1,000. Use `--fail-on error` to report local warnings without returning a failing exit status. Exit code `1` means validation failed, and exit code `2` means the command could not run.
+
+See [troubleshooting](docs/troubleshooting.md) for authentication, ref mismatch, missing file, and exit-code guidance.
 
 ## Design
 
@@ -133,7 +143,7 @@ The syntax check targets `ref`, while local checks target the checked-out workin
 ### Security
 
 - GitHub workflow dependencies are pinned to immutable commit SHAs, and repository settings require SHA-pinned Actions.
-- API calls require HTTPS, reject redirects, time out after 15 seconds, and cap responses at 1 MiB.
+- API calls require HTTPS, reject redirects, time out after 15 seconds, cap responses at 1 MiB, and retry only bounded transient failures.
 - Action paths and CODEOWNERS files cannot escape the checked-out workspace through traversal or symbolic links.
 - Terminal text, workflow annotations, and HTML summaries escape control and bidirectional characters.
 - Dependency installation disables lifecycle scripts; CI checks advisories, registry signatures, and dependency diffs.
@@ -144,6 +154,7 @@ The syntax check targets `ref`, while local checks target the checked-out workin
 - Tracked paths stream from `git ls-files -z`, avoiding a fixed child-process output buffer.
 - GitHub diagnostics and tracked-file enumeration run concurrently.
 - Each file is normalized once and evaluated against ownership rules in one pass, while duplicate-only checks skip Git entirely.
+- Finding details are retained within configured bounds while exact counts and failure behavior cover every finding.
 - `npm run bench` measures a 10,000-rule duplicate workload and a 10,000-file by 100-rule ownership workload.
 
 ## Development
@@ -156,10 +167,12 @@ npm run check
 npm run bench
 ```
 
-`dist/` is committed because GitHub executes JavaScript actions directly from the repository. CI rejects source changes that do not include a rebuilt bundle.
+`npm run check` includes linting, strict type checking, tests with coverage thresholds, and a production build. `dist/` is committed because GitHub executes JavaScript actions directly from the repository. CI rejects source changes that do not include rebuilt bundles and third-party notices.
 
 ## License
 
 CODEOWNERS Guard is source-available under the [PolyForm Perimeter License 1.0.1](LICENSE.md). The license permits use, modification, and redistribution, but does not permit using the software to provide a competing product. Review the license terms before adopting or redistributing the project.
+
+Licenses for packages embedded in the distributed bundles are reproduced in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Copyright (c) 2026 Rares (rarepops).
