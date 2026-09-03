@@ -76,6 +76,8 @@ jobs:
 
 For the strongest supply-chain pinning, replace `v0.1.1` with its full commit SHA. A complete least-privilege workflow is available in [examples/codeowners.yml](examples/codeowners.yml).
 
+Released tags are exercised from the independent public [integration repository](https://github.com/rarepops/codeowners-guard-integration).
+
 The action adds file annotations and a job summary. Its default token is `${{ github.token }}`, and the workflow only needs `contents: read`.
 
 The Action takes its API endpoint from GitHub's runner environment. It does not accept an endpoint input that could redirect the automatically supplied token. GitHub Enterprise Server runners provide their own trusted `GITHUB_API_URL`.
@@ -101,6 +103,14 @@ Annotation limits do not change validation counts or failure behavior.
 The action returns `valid`, `issue-count`, `error-count`, and `warning-count`.
 
 ## CLI
+
+Run the published CLI without installing it globally:
+
+```shell
+npx --yes codeowners-guard@0.1.1 . --checks duplicates,dangling,unowned
+```
+
+Use `codeowners-guard@latest` instead when you explicitly want the newest release. Pinning a version keeps local and CI runs reproducible.
 
 Build and run the CLI locally:
 
