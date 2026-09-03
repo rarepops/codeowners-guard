@@ -59,4 +59,28 @@ describe("validateLocal", () => {
 		]);
 		expect(result.stats).toEqual({ files: 2, rules: 2, matchedRules: 2 });
 	});
+
+	it("does not inspect files when only duplicate rules are requested", () => {
+		const result = validateLocal({
+			source: ["*.md @docs", "*.md @writers"].join("\n"),
+			codeownersPath: "CODEOWNERS",
+			files: ["README.md", "src/app.ts"],
+			checks: new Set<CheckName>(["duplicates"]),
+		});
+
+		expect(result.issues).toHaveLength(1);
+		expect(result.stats).toEqual({ files: 0, rules: 2, matchedRules: 0 });
+	});
+
+	it("applies file exclusions case-sensitively", () => {
+		const result = validateLocal({
+			source: "* @owner",
+			codeownersPath: "CODEOWNERS",
+			files: ["generated/file.ts", "Generated/file.ts"],
+			checks: new Set<CheckName>(["unowned"]),
+			exclude: ["generated/"],
+		});
+
+		expect(result.stats.files).toBe(1);
+	});
 });

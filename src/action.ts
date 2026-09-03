@@ -1,8 +1,14 @@
-import { resolve } from "node:path";
 import * as core from "@actions/core";
 
-import { parseChecks, parsePositiveInteger, parseSeverity } from "./config.js";
+import {
+	parseChecks,
+	parseNonNegativeInteger,
+	parseSeverity,
+} from "./config.js";
+import { escapeHtmlText, escapeTerminalText } from "./display.js";
 import { checkNames, shouldFail, type ValidationIssue } from "./model.js";
+import { resolveRealPathWithin } from "./path.js";
+import { formatIssueMessage } from "./report.js";
 import {
 	type RepositoryValidationResult,
 	validateRepository,
@@ -18,21 +24,27 @@ export async function runAction(): Promise<void> {
 
 	const checks = parseChecks(core.getInput("checks"), checkNames);
 	const failOn = parseSeverity(core.getInput("fail-on"), "warning");
-	const maxAnnotations = parsePositiveInteger(
+	const maxAnnotations = parseNonNegativeInteger(
 		core.getInput("max-annotations"),
 		50,
+		100,
 	);
 	const repository =
 		core.getInput("repository") || process.env.GITHUB_REPOSITORY || "";
 	const ref = core.getInput("ref") || process.env.GITHUB_SHA || "";
-	const apiUrl =
-		core.getInput("github-api-url") ||
-		process.env.GITHUB_API_URL ||
-		"https://api.github.com";
+	const apiUrl = process.env.GITHUB_API_URL || "https://api.github.com";
 	const requestedCodeownersPath = core.getInput("codeowners");
+	const token = core.getInput("github-token");
+	if (token !== "") {
+		core.setSecret(token);
+	}
+	const repositoryPath = await resolveRealPathWithin(
+		workspace,
+		core.getInput("path") || ".",
+	);
 
 	const result = await validateRepository({
-		repositoryPath: resolve(workspace, core.getInput("path") || "."),
+		repositoryPath,
 		checks,
 		exclude: core.getMultilineInput("exclude"),
 		...(requestedCodeownersPath === ""
@@ -43,7 +55,7 @@ export async function runAction(): Promise<void> {
 					github: {
 						apiUrl,
 						repository,
-						token: core.getInput("github-token"),
+						token,
 						ref,
 					},
 				}
@@ -72,7 +84,7 @@ function emitAnnotations(
 	for (const issue of issues.slice(0, maximum)) {
 		const properties: core.AnnotationProperties = {
 			title: `CODEOWNERS ${issue.check}`,
-			file: issue.path,
+			file: escapeTerminalText(issue.path),
 		};
 		if (issue.line !== undefined) {
 			properties.startLine = issue.line;
@@ -83,10 +95,7 @@ function emitAnnotations(
 			properties.endColumn = issue.column;
 		}
 
-		const message =
-			issue.suggestion === undefined
-				? issue.message
-				: `${issue.message} Suggestion: ${issue.suggestion}`;
+		const message = escapeTerminalText(formatIssueMessage(issue));
 		if (issue.severity === "error") {
 			core.error(message, properties);
 		} else {
@@ -95,8 +104,9 @@ function emitAnnotations(
 	}
 
 	if (issues.length > maximum) {
+		const omitted = issues.length - maximum;
 		core.info(
-			`${issues.length - maximum} additional issues omitted from annotations`,
+			`${omitted}${maximum === 0 ? "" : " additional"} issue${omitted === 1 ? "" : "s"} omitted from annotations`,
 		);
 	}
 }
@@ -124,8 +134,10 @@ async function writeJobSummary(
 				.map((issue) => [
 					issue.severity,
 					issue.check,
-					`${issue.path}${issue.line === undefined ? "" : `:${issue.line}`}`,
-					issue.message,
+					escapeHtmlText(
+						`${issue.path}${issue.line === undefined ? "" : `:${issue.line}`}`,
+					),
+					escapeHtmlText(formatIssueMessage(issue)),
 				]),
 		]);
 	} else {

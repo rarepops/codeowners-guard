@@ -40,6 +40,8 @@ describe("fetchGitHubSyntaxIssues", () => {
 		expect(new Headers(init?.headers).get("authorization")).toBe(
 			"Bearer secret",
 		);
+		expect(init?.redirect).toBe("error");
+		expect(init?.signal).toBeInstanceOf(AbortSignal);
 		expect(issues).toEqual([
 			{
 				check: "syntax",
@@ -62,7 +64,7 @@ describe("fetchGitHubSyntaxIssues", () => {
 					.fn<typeof fetch>()
 					.mockResolvedValue(new Response("Not found", { status: 404 })),
 			),
-		).rejects.toThrow("failed with 404");
+		).rejects.toThrow("could not find owner/repo");
 
 		await expect(
 			fetchGitHubSyntaxIssues(
@@ -75,5 +77,61 @@ describe("fetchGitHubSyntaxIssues", () => {
 				),
 			),
 		).rejects.toThrow("invalid CODEOWNERS error response");
+
+		await expect(
+			fetchGitHubSyntaxIssues(
+				{ apiUrl: "https://api.github.test", repository: "owner/repo" },
+				vi.fn<typeof fetch>().mockResolvedValue(
+					new Response(
+						JSON.stringify({
+							errors: [
+								{
+									line: -1,
+									column: 0,
+									kind: "InvalidPattern",
+									message: "Invalid",
+									path: "CODEOWNERS",
+									suggestion: null,
+								},
+							],
+						}),
+						{ status: 200 },
+					),
+				),
+			),
+		).rejects.toThrow("invalid CODEOWNERS error response");
+	});
+
+	it("rejects insecure URLs and oversized responses", async () => {
+		await expect(
+			fetchGitHubSyntaxIssues(
+				{ apiUrl: "http://api.github.test", repository: "owner/repo" },
+				vi.fn<typeof fetch>(),
+			),
+		).rejects.toThrow("must use HTTPS");
+
+		await expect(
+			fetchGitHubSyntaxIssues(
+				{ apiUrl: "https://api.github.test", repository: "owner/repo" },
+				vi
+					.fn<typeof fetch>()
+					.mockResolvedValue(
+						new Response("x".repeat(1024 * 1024 + 1), { status: 200 }),
+					),
+			),
+		).rejects.toThrow("exceeds the 1 MiB limit");
+	});
+
+	it("does not expose an untrusted HTTP error body", async () => {
+		await expect(
+			fetchGitHubSyntaxIssues(
+				{ apiUrl: "https://api.github.test", repository: "owner/repo" },
+				vi
+					.fn<typeof fetch>()
+					.mockResolvedValue(
+						new Response("attacker-controlled detail", { status: 500 }),
+					),
+			),
+		).rejects.not.toThrow("attacker-controlled detail");
 	});
 });

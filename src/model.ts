@@ -38,3 +38,19 @@ export function shouldFail(
 		(issue) => failOn === "warning" || issue.severity === "error",
 	);
 }
+
+export function compareValidationIssues(
+	left: ValidationIssue,
+	right: ValidationIssue,
+): number {
+	return (
+		compareText(left.path, right.path) ||
+		(left.line ?? 0) - (right.line ?? 0) ||
+		compareText(left.check, right.check) ||
+		compareText(left.code, right.code)
+	);
+}
+
+function compareText(left: string, right: string): number {
+	return left === right ? 0 : left < right ? -1 : 1;
+}

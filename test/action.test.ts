@@ -24,6 +24,7 @@ const core = vi.hoisted(() => {
 		info: vi.fn(),
 		setFailed: vi.fn(),
 		setOutput: vi.fn(),
+		setSecret: vi.fn(),
 	};
 });
 
@@ -86,7 +87,7 @@ describe("runAction", () => {
 		);
 		expect(core.warning).toHaveBeenCalledOnce();
 		expect(core.info).toHaveBeenCalledWith(
-			"1 additional issues omitted from annotations",
+			"1 additional issue omitted from annotations",
 		);
 		expect(core.setFailed).not.toHaveBeenCalled();
 		expect(core.setOutput).toHaveBeenCalledWith("valid", false);
@@ -101,7 +102,7 @@ describe("runAction", () => {
 		core.inputs.set("github-token", "secret");
 		core.inputs.set("repository", "alternate/repository");
 		core.inputs.set("ref", "feature-ref");
-		core.inputs.set("github-api-url", "https://enterprise.example/api/v3");
+		vi.stubEnv("GITHUB_API_URL", "https://enterprise.example/api/v3");
 		validateRepository.mockResolvedValue({
 			codeownersPath: "CODEOWNERS",
 			issues: [
@@ -131,6 +132,7 @@ describe("runAction", () => {
 				},
 			}),
 		);
+		expect(core.setSecret).toHaveBeenCalledWith("secret");
 		expect(core.error).toHaveBeenCalledWith(
 			"Invalid pattern Suggestion: Use /docs/",
 			expect.objectContaining({
@@ -142,5 +144,69 @@ describe("runAction", () => {
 		expect(core.setFailed).toHaveBeenCalledWith(
 			"CODEOWNERS validation found 1 issue",
 		);
+	});
+
+	it("escapes untrusted summary markup and control characters", async () => {
+		core.inputs.set("checks", "syntax");
+		validateRepository.mockResolvedValue({
+			codeownersPath: "CODEOWNERS",
+			issues: [
+				{
+					check: "syntax",
+					code: "InvalidPattern",
+					severity: "error",
+					path: "</td>\u001b[31m",
+					message: "</td><script>alert(1)</script>\nnext",
+				},
+			],
+			stats: { files: 0, rules: 1, matchedRules: 0 },
+		});
+
+		await runAction();
+
+		expect(core.error).toHaveBeenCalledWith(
+			"</td><script>alert(1)</script>\\u000anext",
+			expect.anything(),
+		);
+		expect(core.summary.addTable).toHaveBeenCalledWith([
+			expect.anything(),
+			[
+				"error",
+				"syntax",
+				"&lt;/td&gt;\\u001b[31m",
+				"&lt;/td&gt;&lt;script&gt;alert(1)&lt;/script&gt;\\u000anext",
+			],
+		]);
+	});
+
+	it("reports omitted issues clearly when annotations are disabled", async () => {
+		core.inputs.set("checks", "duplicates");
+		core.inputs.set("max-annotations", "0");
+		validateRepository.mockResolvedValue({
+			codeownersPath: "CODEOWNERS",
+			issues: [
+				{
+					check: "duplicates",
+					code: "duplicate-pattern",
+					severity: "warning",
+					path: "CODEOWNERS",
+					message: "Duplicate",
+				},
+			],
+			stats: { files: 0, rules: 2, matchedRules: 0 },
+		});
+
+		await runAction();
+
+		expect(core.info).toHaveBeenCalledWith("1 issue omitted from annotations");
+	});
+
+	it("rejects repository paths outside GITHUB_WORKSPACE", async () => {
+		core.inputs.set("path", "../outside");
+
+		await expect(runAction()).rejects.toThrow(
+			"Path must stay within the repository",
+		);
+		expect(validateRepository).not.toHaveBeenCalled();
 	});
 });

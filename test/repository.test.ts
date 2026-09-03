@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -30,13 +30,52 @@ describe("repository access", () => {
 		);
 	});
 
+	it.runIf(process.platform !== "win32")(
+		"rejects a symbolic-link CODEOWNERS file",
+		async () => {
+			const root = await mkdtemp(join(tmpdir(), "codeowners-guard-"));
+			const outside = join(
+				await mkdtemp(join(tmpdir(), "codeowners-outside-")),
+				"rules",
+			);
+			await writeFile(outside, "* @outside");
+			await symlink(outside, join(root, "CODEOWNERS"));
+
+			await expect(loadCodeownersFile(root)).rejects.toThrow("symbolic link");
+		},
+	);
+
+	it("rejects a CODEOWNERS file larger than GitHub's limit", async () => {
+		const root = await mkdtemp(join(tmpdir(), "codeowners-guard-"));
+		await writeFile(join(root, "CODEOWNERS"), "x".repeat(3 * 1024 * 1024 + 1));
+
+		await expect(loadCodeownersFile(root)).rejects.toThrow("3 MiB limit");
+	});
+
 	it("lists tracked files without including untracked files", async () => {
 		const root = await mkdtemp(join(tmpdir(), "codeowners-guard-"));
 		execFileSync("git", ["init", "--quiet", root]);
 		await writeFile(join(root, "tracked.txt"), "tracked");
+		await writeFile(join(root, "space π.txt"), "tracked");
 		await writeFile(join(root, "untracked.txt"), "untracked");
-		execFileSync("git", ["-C", root, "add", "tracked.txt"]);
+		execFileSync("git", ["-C", root, "add", "tracked.txt", "space π.txt"]);
 
-		await expect(listTrackedFiles(root)).resolves.toEqual(["tracked.txt"]);
+		await expect(listTrackedFiles(root)).resolves.toEqual([
+			"space π.txt",
+			"tracked.txt",
+		]);
 	});
+
+	it.runIf(process.platform !== "win32")(
+		"preserves newlines in NUL-delimited tracked filenames",
+		async () => {
+			const root = await mkdtemp(join(tmpdir(), "codeowners-guard-"));
+			const filename = "line\nbreak.txt";
+			execFileSync("git", ["init", "--quiet", root]);
+			await writeFile(join(root, filename), "tracked");
+			execFileSync("git", ["-C", root, "add", filename]);
+
+			await expect(listTrackedFiles(root)).resolves.toEqual([filename]);
+		},
+	);
 });

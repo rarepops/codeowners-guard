@@ -3,6 +3,7 @@
 import { parseArgs } from "node:util";
 
 import { localCheckNames, parseChecks, parseSeverity } from "./config.js";
+import { escapeTerminalText } from "./display.js";
 import { shouldFail } from "./model.js";
 import { formatTextReport } from "./report.js";
 import { validateRepository } from "./validate-repository.js";
@@ -22,7 +23,6 @@ async function main(): Promise<void> {
 			help: { type: "boolean", short: "h" },
 			ref: { type: "string" },
 			repository: { type: "string", short: "r" },
-			token: { type: "string" },
 			version: { type: "boolean", short: "v" },
 		},
 	});
@@ -65,11 +65,7 @@ async function main(): Promise<void> {
 							process.env.GITHUB_API_URL ??
 							"https://api.github.com",
 						repository: repository ?? "",
-						token:
-							values.token ??
-							process.env.GITHUB_TOKEN ??
-							process.env.GH_TOKEN ??
-							"",
+						token: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN ?? "",
 						...(values.ref === undefined ? {} : { ref: values.ref }),
 					},
 				}
@@ -100,12 +96,14 @@ Options:
   -f, --format <format>     Output format: text or json (default: text)
   -r, --repository <repo>   GitHub owner/name, required by the syntax check
       --ref <ref>           GitHub branch, tag, or commit to validate
-      --token <token>       GitHub token (or set GITHUB_TOKEN/GH_TOKEN)
+							Set GITHUB_TOKEN or GH_TOKEN for authenticated access
       --api-url <url>       GitHub API URL (default: https://api.github.com)
   -v, --version             Print the version
   -h, --help                Show this help`;
 
 main().catch((error: unknown) => {
-	console.error(error instanceof Error ? error.message : String(error));
+	console.error(
+		escapeTerminalText(error instanceof Error ? error.message : String(error)),
+	);
 	process.exitCode = 2;
 });

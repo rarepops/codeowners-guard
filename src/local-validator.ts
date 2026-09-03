@@ -1,8 +1,15 @@
 import ignore from "ignore";
 
-import { compileRules, findOwningRule } from "./matcher.js";
-import type { CheckName, ValidationIssue, ValidationResult } from "./model.js";
+import { compileRules } from "./matcher.js";
+import {
+	type CheckName,
+	compareValidationIssues,
+	type ValidationIssue,
+	type ValidationResult,
+} from "./model.js";
+import type { CodeownersRule } from "./parser.js";
 import { findDuplicatePatterns, parseCodeowners } from "./parser.js";
+import { normalizeRepositoryPath } from "./path.js";
 
 export interface LocalValidationOptions {
 	source: string;
@@ -20,9 +27,15 @@ export function validateLocal(
 	const rules = parseCodeowners(options.source).filter(
 		(rule) => !skipLines.has(rule.line),
 	);
-	const compiledRules = compileRules(rules);
-	const files = filterFiles(options.files, options.exclude ?? []);
-	const matchedRuleIndexes = new Set<number>();
+	const checksDangling = options.checks.has("dangling");
+	const checksUnowned = options.checks.has("unowned");
+	const checksFiles = checksDangling || checksUnowned;
+	const compiledRules = checksFiles ? compileRules(rules) : [];
+	const files = checksFiles
+		? filterFiles(options.files, options.exclude ?? [])
+		: [];
+	const matchedRules = new Uint8Array(rules.length);
+	let matchedRuleCount = 0;
 	const issues: ValidationIssue[] = [];
 
 	if (options.checks.has("duplicates")) {
@@ -39,14 +52,23 @@ export function validateLocal(
 	}
 
 	for (const file of files) {
-		for (const [index, rule] of compiledRules.entries()) {
-			if (rule.matches(file)) {
-				matchedRuleIndexes.add(index);
+		let owningRule: CodeownersRule | undefined;
+		if (checksFiles) {
+			for (let index = 0; index < compiledRules.length; index += 1) {
+				const rule = compiledRules[index];
+				if (rule?.matches(file)) {
+					if (matchedRules[index] === 0) {
+						matchedRules[index] = 1;
+						matchedRuleCount += 1;
+					}
+					if (checksUnowned) {
+						owningRule = rule.rule;
+					}
+				}
 			}
 		}
 
-		if (options.checks.has("unowned")) {
-			const owningRule = findOwningRule(compiledRules, file);
+		if (checksUnowned) {
 			if (owningRule === undefined || owningRule.owners.length === 0) {
 				issues.push({
 					check: "unowned",
@@ -62,9 +84,10 @@ export function validateLocal(
 		}
 	}
 
-	if (options.checks.has("dangling")) {
-		for (const [index, rule] of rules.entries()) {
-			if (!matchedRuleIndexes.has(index)) {
+	if (checksDangling) {
+		for (let index = 0; index < rules.length; index += 1) {
+			const rule = rules[index];
+			if (rule !== undefined && matchedRules[index] === 0) {
 				issues.push({
 					check: "dangling",
 					code: "dangling-pattern",
@@ -78,11 +101,11 @@ export function validateLocal(
 	}
 
 	return {
-		issues: issues.sort(compareIssues),
+		issues: issues.sort(compareValidationIssues),
 		stats: {
 			files: files.length,
 			rules: rules.length,
-			matchedRules: matchedRuleIndexes.size,
+			matchedRules: matchedRuleCount,
 		},
 	};
 }
@@ -91,21 +114,21 @@ function filterFiles(
 	files: readonly string[],
 	exclusions: readonly string[],
 ): string[] {
-	const exclude = ignore().add(exclusions);
+	const exclude =
+		exclusions.length === 0
+			? undefined
+			: ignore({ ignorecase: false }).add(exclusions);
+	const seen = new Set<string>();
+	const filtered: string[] = [];
 
-	return [...new Set(files.map(normalizePath))]
-		.filter((path) => path !== "" && !exclude.ignores(path))
-		.sort();
-}
+	for (const file of files) {
+		const path = normalizeRepositoryPath(file);
+		if (path === "" || seen.has(path) || exclude?.ignores(path)) {
+			continue;
+		}
+		seen.add(path);
+		filtered.push(path);
+	}
 
-function normalizePath(path: string): string {
-	return path.replaceAll("\\", "/").replace(/^\.\//u, "");
-}
-
-function compareIssues(left: ValidationIssue, right: ValidationIssue): number {
-	return (
-		left.path.localeCompare(right.path) ||
-		(left.line ?? 0) - (right.line ?? 0) ||
-		left.code.localeCompare(right.code)
-	);
+	return filtered.sort();
 }

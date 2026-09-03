@@ -1,6 +1,6 @@
-import ignore, { type Ignore } from "ignore";
-
+import ignore from "ignore";
 import type { CodeownersRule } from "./parser.js";
+import { normalizeRepositoryPath } from "./path.js";
 
 export interface CompiledRule {
 	rule: CodeownersRule;
@@ -9,11 +9,11 @@ export interface CompiledRule {
 
 export function compileRules(rules: readonly CodeownersRule[]): CompiledRule[] {
 	return rules.map((rule) => {
-		const matcher = ignore().add(rule.pattern);
+		const matcher = ignore({ ignorecase: false }).add(rule.pattern);
 
 		return {
 			rule,
-			matches: (path: string) => matches(matcher, path),
+			matches: (path: string) => matcher.ignores(path),
 		};
 	});
 }
@@ -22,17 +22,13 @@ export function findOwningRule(
 	rules: readonly CompiledRule[],
 	path: string,
 ): CodeownersRule | undefined {
+	const normalizedPath = normalizeRepositoryPath(path);
 	for (let index = rules.length - 1; index >= 0; index -= 1) {
 		const rule = rules[index];
-		if (rule?.matches(path)) {
+		if (rule?.matches(normalizedPath)) {
 			return rule.rule;
 		}
 	}
 
 	return undefined;
-}
-
-function matches(matcher: Ignore, path: string): boolean {
-	const normalizedPath = path.replaceAll("\\", "/").replace(/^\.\//u, "");
-	return matcher.ignores(normalizedPath);
 }

@@ -39,14 +39,20 @@ export function parseSeverity(value: string, fallback: Severity): Severity {
 	return severity;
 }
 
-export function parsePositiveInteger(value: string, fallback: number): number {
+export function parseNonNegativeInteger(
+	value: string,
+	fallback: number,
+	maximum: number,
+): number {
 	if (value.trim() === "") {
 		return fallback;
 	}
 
 	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed < 0) {
-		throw new Error("max-annotations must be a non-negative integer");
+	if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > maximum) {
+		throw new Error(
+			`max-annotations must be a non-negative integer up to ${maximum}`,
+		);
 	}
 	return parsed;
 }

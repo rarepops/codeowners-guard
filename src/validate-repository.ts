@@ -3,7 +3,13 @@ import {
 	type GitHubValidationOptions,
 } from "./github-validator.js";
 import { validateLocal } from "./local-validator.js";
-import type { CheckName, ValidationIssue, ValidationStats } from "./model.js";
+import {
+	type CheckName,
+	compareValidationIssues,
+	type ValidationIssue,
+	type ValidationStats,
+} from "./model.js";
+import { normalizeRepositoryPath } from "./path.js";
 import { listTrackedFiles, loadCodeownersFile } from "./repository.js";
 
 export interface RepositoryValidationOptions {
@@ -30,20 +36,28 @@ export async function validateRepository(
 		options.repositoryPath,
 		options.codeownersPath,
 	);
-	const files =
-		localChecks.size > 0 ? await listTrackedFiles(options.repositoryPath) : [];
-
-	let syntaxIssues: ValidationIssue[] = [];
+	const needsFiles = localChecks.has("dangling") || localChecks.has("unowned");
+	let syntaxPromise: Promise<ValidationIssue[]> = Promise.resolve([]);
 	if (options.checks.has("syntax")) {
 		if (options.github === undefined) {
 			throw new Error("The syntax check requires a GitHub repository");
 		}
-		syntaxIssues = await fetchGitHubSyntaxIssues(options.github);
+		syntaxPromise = fetchGitHubSyntaxIssues(options.github);
 	}
+	const filesPromise = needsFiles
+		? listTrackedFiles(options.repositoryPath)
+		: Promise.resolve([]);
+	const [syntaxIssues, files] = await Promise.all([
+		syntaxPromise,
+		filesPromise,
+	]);
 
 	const invalidLines = new Set(
 		syntaxIssues
-			.filter((issue) => normalizePath(issue.path) === codeowners.relativePath)
+			.filter(
+				(issue) =>
+					normalizeRepositoryPath(issue.path) === codeowners.relativePath,
+			)
 			.flatMap((issue) => (issue.line === undefined ? [] : [issue.line])),
 	);
 	const local = validateLocal({
@@ -57,20 +71,7 @@ export async function validateRepository(
 
 	return {
 		codeownersPath: codeowners.relativePath,
-		issues: [...syntaxIssues, ...local.issues].sort(compareIssues),
+		issues: [...syntaxIssues, ...local.issues].sort(compareValidationIssues),
 		stats: local.stats,
 	};
-}
-
-function normalizePath(path: string): string {
-	return path.replaceAll("\\", "/").replace(/^\//u, "");
-}
-
-function compareIssues(left: ValidationIssue, right: ValidationIssue): number {
-	return (
-		left.path.localeCompare(right.path) ||
-		(left.line ?? 0) - (right.line ?? 0) ||
-		left.check.localeCompare(right.check) ||
-		left.code.localeCompare(right.code)
-	);
 }

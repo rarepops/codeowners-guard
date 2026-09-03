@@ -29,7 +29,7 @@ await Promise.all([
 		entryPoints: ["src/cli.ts"],
 		format: "esm",
 		outfile: "dist/cli.js",
-		target: "node22",
+		target: "node24",
 	}),
 ]);
 

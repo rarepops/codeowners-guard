@@ -12,6 +12,18 @@ beforeAll(() => {
 });
 
 describe("packaged CLI", () => {
+	it("rejects command-line tokens without echoing the secret", () => {
+		const result = spawnSync(
+			process.execPath,
+			[cliPath, "--token", "should-not-appear"],
+			{ encoding: "utf8" },
+		);
+
+		expect(result.status).toBe(2);
+		expect(result.stderr).toContain("Unknown option '--token'");
+		expect(result.stderr).not.toContain("should-not-appear");
+	});
+
 	it("reports local issues as JSON and applies the failure threshold", async () => {
 		const root = await mkdtemp(join(tmpdir(), "codeowners-guard-cli-"));
 		await mkdir(join(root, ".github"));

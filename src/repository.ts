@@ -1,6 +1,15 @@
-import { execFile } from "node:child_process";
-import { readFile, stat } from "node:fs/promises";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { spawn } from "node:child_process";
+import { lstat, readFile, realpath } from "node:fs/promises";
+import { relative, resolve } from "node:path";
+import { StringDecoder } from "node:string_decoder";
+
+import {
+	assertPathWithin,
+	normalizeRepositoryPath,
+	resolvePathWithin,
+} from "./path.js";
+
+const maxCodeownersBytes = 3 * 1024 * 1024;
 
 const standardCodeownersPaths = [
 	".github/CODEOWNERS",
@@ -19,16 +28,25 @@ export async function loadCodeownersFile(
 	requestedPath?: string,
 ): Promise<CodeownersFile> {
 	const root = resolve(repositoryPath);
+	const realRoot = await realpath(root);
 	const candidates =
 		requestedPath === undefined ? standardCodeownersPaths : [requestedPath];
 
 	for (const candidate of candidates) {
-		const absolutePath = resolveWithin(root, candidate);
-		if (await isFile(absolutePath)) {
+		const absolutePath = resolvePathWithin(root, candidate);
+		const file = await getRegularFile(absolutePath, candidate);
+		if (file !== undefined) {
+			const realFile = await realpath(absolutePath);
+			assertPathWithin(realRoot, realFile, candidate);
+			if (file.size > maxCodeownersBytes) {
+				throw new Error(
+					`CODEOWNERS exceeds GitHub's 3 MiB limit: ${candidate}`,
+				);
+			}
 			return {
-				absolutePath,
-				relativePath: normalizePath(relative(root, absolutePath)),
-				source: await readFile(absolutePath, "utf8"),
+				absolutePath: realFile,
+				relativePath: normalizeRepositoryPath(relative(root, absolutePath)),
+				source: await readFile(realFile, "utf8"),
 			};
 		}
 	}
@@ -41,64 +59,82 @@ export async function listTrackedFiles(
 	repositoryPath: string,
 ): Promise<string[]> {
 	const root = resolve(repositoryPath);
-	const output = await runGit(["-C", root, "ls-files", "--cached", "-z"]);
-
-	return output.split("\0").filter(Boolean).map(normalizePath).sort();
+	return runGitFileList(root);
 }
 
-function resolveWithin(root: string, candidate: string): string {
-	const absolutePath = resolve(root, candidate);
-	const relativePath = relative(root, absolutePath);
-
-	if (
-		relativePath === ".." ||
-		relativePath.startsWith(`..${sep}`) ||
-		isAbsolute(relativePath)
-	) {
-		throw new Error(
-			`CODEOWNERS path must stay within the repository: ${candidate}`,
-		);
-	}
-
-	return absolutePath;
-}
-
-async function isFile(path: string): Promise<boolean> {
+async function getRegularFile(
+	path: string,
+	displayPath: string,
+): Promise<Awaited<ReturnType<typeof lstat>> | undefined> {
 	try {
-		return (await stat(path)).isFile();
+		const file = await lstat(path);
+		if (file.isSymbolicLink()) {
+			throw new Error(`CODEOWNERS must not be a symbolic link: ${displayPath}`);
+		}
+		return file.isFile() ? file : undefined;
 	} catch (error) {
 		if (isNodeError(error) && error.code === "ENOENT") {
-			return false;
+			return undefined;
 		}
 		throw error;
 	}
 }
 
-function runGit(arguments_: string[]): Promise<string> {
+function runGitFileList(root: string): Promise<string[]> {
 	return new Promise((resolvePromise, reject) => {
-		execFile(
-			"git",
-			arguments_,
-			{ encoding: "utf8", maxBuffer: 100 * 1024 * 1024 },
-			(error, stdout, stderr) => {
-				if (error === null) {
-					resolvePromise(stdout);
-					return;
+		const child = spawn("git", ["-C", root, "ls-files", "--cached", "-z"], {
+			stdio: ["ignore", "pipe", "pipe"],
+			windowsHide: true,
+		});
+		const decoder = new StringDecoder("utf8");
+		const files: string[] = [];
+		let pending = "";
+		let stderr = "";
+		let settled = false;
+
+		child.stdout.on("data", (chunk: Buffer) => {
+			pending += decoder.write(chunk);
+			let separator = pending.indexOf("\0");
+			while (separator !== -1) {
+				const path = pending.slice(0, separator);
+				if (path !== "") {
+					files.push(normalizeRepositoryPath(path));
 				}
+				pending = pending.slice(separator + 1);
+				separator = pending.indexOf("\0");
+			}
+		});
+		child.stderr.on("data", (chunk: Buffer) => {
+			if (stderr.length < 8192) {
+				stderr += chunk.toString("utf8", 0, 8192 - stderr.length);
+			}
+		});
+		child.once("error", (error) => {
+			settled = true;
+			reject(
+				new Error("Unable to start git while listing tracked files", {
+					cause: error,
+				}),
+			);
+		});
+		child.once("close", (code, signal) => {
+			if (settled) {
+				return;
+			}
+			settled = true;
+			pending += decoder.end();
+			if (code === 0) {
+				if (pending !== "") {
+					files.push(normalizeRepositoryPath(pending));
+				}
+				resolvePromise(files.sort());
+				return;
+			}
 
-				const detail = stderr.trim() || error.message;
-				reject(
-					new Error(`Unable to list tracked files: ${detail}`, {
-						cause: error,
-					}),
-				);
-			},
-		);
+			const detail = stderr.trim() || `git exited with ${code ?? signal}`;
+			reject(new Error(`Unable to list tracked files: ${detail}`));
+		});
 	});
-}
-
-function normalizePath(path: string): string {
-	return path.replaceAll("\\", "/");
 }
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {

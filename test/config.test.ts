@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	parseChecks,
-	parsePositiveInteger,
+	parseNonNegativeInteger,
 	parseSeverity,
 } from "../src/config.js";
 import type { CheckName } from "../src/model.js";
@@ -26,9 +26,14 @@ describe("configuration parsing", () => {
 		expect(parseSeverity("ERROR", "warning")).toBe("error");
 		expect(() => parseSeverity("notice", "warning")).toThrow("fail-on");
 
-		expect(parsePositiveInteger("", 50)).toBe(50);
-		expect(parsePositiveInteger("0", 50)).toBe(0);
-		expect(() => parsePositiveInteger("-1", 50)).toThrow("max-annotations");
-		expect(() => parsePositiveInteger("1.5", 50)).toThrow("max-annotations");
+		expect(parseNonNegativeInteger("", 50, 100)).toBe(50);
+		expect(parseNonNegativeInteger("0", 50, 100)).toBe(0);
+		expect(() => parseNonNegativeInteger("-1", 50, 100)).toThrow(
+			"max-annotations",
+		);
+		expect(() => parseNonNegativeInteger("1.5", 50, 100)).toThrow(
+			"max-annotations",
+		);
+		expect(() => parseNonNegativeInteger("101", 50, 100)).toThrow("up to 100");
 	});
 });

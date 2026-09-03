@@ -10,7 +10,7 @@ Thanks for your interest in CODEOWNERS Guard. Bug reports, validation ideas, and
 
 ## Development setup
 
-Install Node.js 22 or newer, then clone, install, and validate:
+Install the Node.js version pinned in `.node-version` (or a newer Node.js 24 release), then clone, install, and validate:
 
 ```shell
 git clone git@github.com:rarepops/codeowners-guard.git
@@ -46,7 +46,7 @@ GitHub's CODEOWNERS API is authoritative for syntax diagnostics. Local matching 
 - **Core behavior is test-first.** Add the smallest failing test before changing parsing, matching, or issue classification.
 - **Commits use Conventional Commits.** Use prefixes such as `feat:`, `fix:`, `docs:`, `test:`, `chore:`, `build:`, or `ci:`.
 - **Generated bundles are reviewed artifacts.** GitHub executes `dist/index.cjs` directly, so source changes and rebuilt bundles belong in the same commit.
-- **Runtime compatibility is deliberate.** Node.js 22 is the CLI floor, while GitHub runs the Action bundle on Node.js 24.
+- **Runtime compatibility is deliberate.** Node.js 24 is the shared floor for the CLI and GitHub Action bundle.
 
 ## Releases
 

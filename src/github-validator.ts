@@ -1,5 +1,8 @@
 import type { ValidationIssue } from "./model.js";
 
+const maxResponseBytes = 1024 * 1024;
+const requestTimeoutMs = 15_000;
+
 interface GitHubCodeownersError {
 	line: number;
 	column: number;
@@ -25,18 +28,22 @@ export async function fetchGitHubSyntaxIssues(
 	fetchImplementation: typeof fetch = fetch,
 ): Promise<ValidationIssue[]> {
 	const [owner, repository, extra] = options.repository.split("/");
-	if (owner === undefined || repository === undefined || extra !== undefined) {
+	if (
+		owner === undefined ||
+		owner === "" ||
+		repository === undefined ||
+		repository === "" ||
+		extra !== undefined
+	) {
 		throw new Error(
 			`Repository must use the owner/name format: ${options.repository}`,
 		);
 	}
 
-	const baseUrl = options.apiUrl.replace(/\/+$/u, "");
-	const url = new URL(
-		`${baseUrl}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/codeowners/errors`,
-	);
-	if (options.ref !== undefined && options.ref !== "") {
-		url.searchParams.set("ref", options.ref);
+	const url = buildRequestUrl(options.apiUrl, owner, repository);
+	const ref = options.ref?.trim();
+	if (ref !== undefined && ref !== "") {
+		url.searchParams.set("ref", ref);
 	}
 
 	const headers = new Headers({
@@ -47,15 +54,32 @@ export async function fetchGitHubSyntaxIssues(
 		headers.set("authorization", `Bearer ${options.token}`);
 	}
 
-	const response = await fetchImplementation(url, { headers });
+	let response: Response;
+	try {
+		response = await fetchImplementation(url, {
+			headers,
+			redirect: "error",
+			signal: AbortSignal.timeout(requestTimeoutMs),
+		});
+	} catch (error) {
+		if (
+			error instanceof Error &&
+			(error.name === "TimeoutError" || error.name === "AbortError")
+		) {
+			throw new Error(
+				`GitHub CODEOWNERS validation timed out after ${requestTimeoutMs / 1000} seconds`,
+				{ cause: error },
+			);
+		}
+		throw new Error("GitHub CODEOWNERS validation request failed", {
+			cause: error,
+		});
+	}
 	if (!response.ok) {
-		const detail = await response.text();
-		throw new Error(
-			`GitHub CODEOWNERS validation failed with ${response.status}: ${detail || response.statusText}`,
-		);
+		throw createHttpError(response.status, options.repository);
 	}
 
-	const body: unknown = await response.json();
+	const body = await readJsonResponse(response);
 	if (!isGitHubResponse(body)) {
 		throw new Error("GitHub returned an invalid CODEOWNERS error response");
 	}
@@ -77,6 +101,100 @@ export async function fetchGitHubSyntaxIssues(
 	});
 }
 
+function buildRequestUrl(
+	apiUrl: string,
+	owner: string,
+	repository: string,
+): URL {
+	let url: URL;
+	try {
+		url = new URL(apiUrl);
+	} catch (error) {
+		throw new Error(`Invalid GitHub API URL: ${apiUrl}`, { cause: error });
+	}
+
+	if (url.protocol !== "https:") {
+		throw new Error("GitHub API URL must use HTTPS");
+	}
+	if (url.username !== "" || url.password !== "") {
+		throw new Error("GitHub API URL must not contain credentials");
+	}
+	if (url.search !== "" || url.hash !== "") {
+		throw new Error("GitHub API URL must not contain a query or fragment");
+	}
+
+	const basePath = url.pathname.replace(/\/+$/u, "");
+	url.pathname = `${basePath}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/codeowners/errors`;
+	return url;
+}
+
+function createHttpError(status: number, repository: string): Error {
+	if (status === 401) {
+		return new Error("GitHub authentication failed; check the supplied token");
+	}
+	if (status === 403) {
+		return new Error(
+			"GitHub denied CODEOWNERS access; check token permissions and rate limits",
+		);
+	}
+	if (status === 404) {
+		return new Error(
+			`GitHub could not find ${repository}, its ref, or its CODEOWNERS file`,
+		);
+	}
+	if (status === 429) {
+		return new Error("GitHub rate-limited the CODEOWNERS request; retry later");
+	}
+	if (status >= 500) {
+		return new Error(
+			`GitHub CODEOWNERS service failed with ${status}; retry later`,
+		);
+	}
+	return new Error(`GitHub CODEOWNERS validation failed with ${status}`);
+}
+
+async function readJsonResponse(response: Response): Promise<unknown> {
+	const contentLength = response.headers.get("content-length");
+	if (
+		contentLength !== null &&
+		Number.isFinite(Number(contentLength)) &&
+		Number(contentLength) > maxResponseBytes
+	) {
+		await response.body?.cancel();
+		throw new Error("GitHub CODEOWNERS response exceeds the 1 MiB limit");
+	}
+
+	if (response.body === null) {
+		throw new Error("GitHub returned an empty CODEOWNERS response");
+	}
+
+	const reader = response.body.getReader();
+	const decoder = new TextDecoder();
+	let body = "";
+	let bytes = 0;
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) {
+			break;
+		}
+		bytes += value.byteLength;
+		if (bytes > maxResponseBytes) {
+			await reader.cancel();
+			throw new Error("GitHub CODEOWNERS response exceeds the 1 MiB limit");
+		}
+		body += decoder.decode(value, { stream: true });
+	}
+	body += decoder.decode();
+
+	try {
+		return JSON.parse(body) as unknown;
+	} catch (error) {
+		throw new Error("GitHub returned invalid JSON for CODEOWNERS validation", {
+			cause: error,
+		});
+	}
+}
+
 function isGitHubResponse(value: unknown): value is GitHubCodeownersResponse {
 	if (typeof value !== "object" || value === null || !("errors" in value)) {
 		return false;
@@ -89,8 +207,10 @@ function isGitHubResponse(value: unknown): value is GitHubCodeownersResponse {
 			(error) =>
 				typeof error === "object" &&
 				error !== null &&
-				typeof error.line === "number" &&
-				typeof error.column === "number" &&
+				Number.isSafeInteger(error.line) &&
+				error.line > 0 &&
+				Number.isSafeInteger(error.column) &&
+				error.column > 0 &&
 				typeof error.kind === "string" &&
 				typeof error.message === "string" &&
 				typeof error.path === "string" &&

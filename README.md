@@ -9,7 +9,7 @@
   <a href="https://github.com/rarepops/codeowners-guard/releases/latest"><img src="https://img.shields.io/github/v/release/rarepops/codeowners-guard?label=release&color=brightgreen" alt="Latest release" /></a>
   <a href="https://github.com/rarepops/codeowners-guard/releases"><img src="https://img.shields.io/github/downloads/rarepops/codeowners-guard/total?label=downloads" alt="Downloads" /></a>
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-PolyForm%20Perimeter%201.0.1-blue" alt="License" /></a>
-  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22%2B-339933?logo=node.js&logoColor=white" alt="Node.js 22 or newer" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-24%2B-339933?logo=node.js&logoColor=white" alt="Node.js 24 or newer" /></a>
   <img src="https://img.shields.io/badge/action%20runtime-Node.js%2024-2088FF?logo=githubactions&logoColor=white" alt="GitHub Action runtime: Node.js 24" />
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey" alt="Platforms: Windows, Linux, and macOS" />
 </p>
@@ -40,6 +40,8 @@ CODEOWNERS Guard combines GitHub's own diagnostics with local repository checks.
 
 Rules use GitHub's last-match-wins behavior. CODEOWNERS Guard searches the standard locations in GitHub's order: `.github/CODEOWNERS`, `CODEOWNERS`, then `docs/CODEOWNERS`.
 
+When the `syntax` check is disabled, local checks assume the remaining CODEOWNERS lines are valid. Keep `syntax` enabled in the Action, or validate the committed ref with GitHub before relying on local-only coverage results.
+
 ## GitHub Action
 
 ```yaml
@@ -57,7 +59,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: rarepops/codeowners-guard@v0.1.0
         with:
           checks: syntax,duplicates,dangling,unowned
@@ -70,6 +72,8 @@ For the strongest supply-chain pinning, replace `v0.1.0` with its full commit SH
 
 The action adds file annotations and a job summary. Its default token is `${{ github.token }}`, and the workflow only needs `contents: read`.
 
+The Action takes its API endpoint from GitHub's runner environment. It does not accept an endpoint input that could redirect the automatically supplied token. GitHub Enterprise Server runners provide their own trusted `GITHUB_API_URL`.
+
 ### Inputs
 
 | Input | Default | Description |
@@ -81,9 +85,8 @@ The action adds file annotations and a job summary. Its default token is `${{ gi
 | `exclude` | none | Newline-separated gitignore patterns omitted from local checks |
 | `repository` | `${{ github.repository }}` | Repository in `owner/name` form |
 | `ref` | `${{ github.sha }}` | Branch, tag, or commit used by the syntax check |
-| `github-api-url` | `${{ github.api_url }}` | GitHub API URL, including GitHub Enterprise Server |
 | `fail-on` | `warning` | Failure threshold: `warning` or `error` |
-| `max-annotations` | `50` | Maximum workflow annotations and summary rows |
+| `max-annotations` | `50` | Maximum workflow annotations and summary rows, up to `100` |
 
 ### Outputs
 
@@ -117,6 +120,8 @@ GITHUB_TOKEN=ghp_example node dist/cli.js . \
   --ref main
 ```
 
+Tokens are accepted only through `GITHUB_TOKEN` or `GH_TOKEN`; command-line token arguments are deliberately unsupported so credentials do not enter shell history or process listings.
+
 Use `--fail-on error` to report local warnings without returning a failing exit status. Exit code `1` means validation failed, and exit code `2` means the command could not run.
 
 ## Design
@@ -125,13 +130,30 @@ GitHub remains the authority for syntax diagnostics. Local checks operate on fil
 
 The syntax check targets `ref`, while local checks target the checked-out working tree. In normal Actions usage both refer to the same commit. For uncommitted local changes, run local checks only or push the change to a ref before requesting GitHub diagnostics.
 
+### Security
+
+- GitHub workflow dependencies are pinned to immutable commit SHAs, and repository settings require SHA-pinned Actions.
+- API calls require HTTPS, reject redirects, time out after 15 seconds, and cap responses at 1 MiB.
+- Action paths and CODEOWNERS files cannot escape the checked-out workspace through traversal or symbolic links.
+- Terminal text, workflow annotations, and HTML summaries escape control and bidirectional characters.
+- Dependency installation disables lifecycle scripts; CI checks advisories, registry signatures, and dependency diffs.
+- Tagged release artifacts include SHA-256 checksums and GitHub build-provenance attestations.
+
+### Performance
+
+- Tracked paths stream from `git ls-files -z`, avoiding a fixed child-process output buffer.
+- GitHub diagnostics and tracked-file enumeration run concurrently.
+- Each file is normalized once and evaluated against ownership rules in one pass, while duplicate-only checks skip Git entirely.
+- `npm run bench` measures a 10,000-rule duplicate workload and a 10,000-file by 100-rule ownership workload.
+
 ## Development
 
-Requires Node.js 22 or newer.
+Requires Node.js 24 or newer.
 
 ```shell
 npm ci
 npm run check
+npm run bench
 ```
 
 `dist/` is committed because GitHub executes JavaScript actions directly from the repository. CI rejects source changes that do not include a rebuilt bundle.

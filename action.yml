@@ -29,16 +29,12 @@ inputs:
     description: GitHub branch, tag, or commit used for syntax validation
     required: false
     default: ${{ github.sha }}
-  github-api-url:
-    description: GitHub API URL, including for GitHub Enterprise Server
-    required: false
-    default: ${{ github.api_url }}
   fail-on:
     description: Failure threshold (warning or error)
     required: false
     default: warning
   max-annotations:
-    description: Maximum number of workflow annotations and summary rows
+    description: Maximum number of workflow annotations and summary rows (up to 100)
     required: false
     default: "50"
 

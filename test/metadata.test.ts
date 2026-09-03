@@ -17,6 +17,9 @@ interface ActionMetadata {
 interface PackageMetadata {
 	version: string;
 	license: string;
+	packageManager: string;
+	engines: { node: string };
+	devDependencies: Record<string, string>;
 }
 
 describe("GitHub metadata", () => {
@@ -30,7 +33,6 @@ describe("GitHub metadata", () => {
 			"codeowners",
 			"exclude",
 			"fail-on",
-			"github-api-url",
 			"github-token",
 			"max-annotations",
 			"path",
@@ -65,10 +67,11 @@ describe("GitHub metadata", () => {
 	});
 
 	it("keeps release and license metadata aligned", async () => {
-		const [packageSource, readme, license] = await Promise.all([
+		const [packageSource, readme, license, nodeVersion] = await Promise.all([
 			readFile(resolve("package.json"), "utf8"),
 			readFile(resolve("README.md"), "utf8"),
 			readFile(resolve("LICENSE.md"), "utf8"),
+			readFile(resolve(".node-version"), "utf8"),
 		]);
 		const packageMetadata = JSON.parse(packageSource) as PackageMetadata;
 
@@ -77,5 +80,9 @@ describe("GitHub metadata", () => {
 		);
 		expect(packageMetadata.license).toBe("SEE LICENSE IN LICENSE.md");
 		expect(license).toMatch(/^# PolyForm Perimeter License 1\.0\.1$/mu);
+		expect(nodeVersion.trim()).toMatch(/^24\./u);
+		expect(packageMetadata.engines.node).toBe(">=24");
+		expect(packageMetadata.packageManager).toMatch(/^npm@11\./u);
+		expect(packageMetadata.devDependencies["@types/node"]).toMatch(/^24\./u);
 	});
 });

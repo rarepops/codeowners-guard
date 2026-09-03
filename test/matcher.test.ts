@@ -56,4 +56,13 @@ describe("CODEOWNERS matching", () => {
 			"@engineering",
 		]);
 	});
+
+	it("matches paths case-sensitively on every operating system", () => {
+		const compiled = compileRules([rule(1, "/src/", ["@engineering"])]);
+
+		expect(findOwningRule(compiled, "src/app.ts")?.owners).toEqual([
+			"@engineering",
+		]);
+		expect(findOwningRule(compiled, "Src/app.ts")).toBeUndefined();
+	});
 });
