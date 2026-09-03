@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - "v*.*.*"
+  # Manual runs build and retain the exact release artifacts for inspection,
+  # but only a version tag publishes a GitHub release.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -27,13 +30,35 @@ jobs:
       - run: npm run check
       - name: Verify committed bundles
         run: git diff --exit-code -- dist
+
+      - name: Resolve package version
+        id: package
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
       - name: Verify tag matches package version
-        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+        if: github.ref_type == 'tag'
+        run: test "v${{ steps.package.outputs.version }}" = "$GITHUB_REF_NAME"
+
       - name: Build CLI package
         run: |
           mkdir release
           npm pack --pack-destination release
+
+      - name: Compute checksums
+        working-directory: release
+        run: sha256sum *.tgz > SHA256SUMS.txt
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: codeowners-guard-${{ steps.package.outputs.version }}
+          path: release/*
+
       - name: Create GitHub release
+        if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" release/*.tgz --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
+        run: >
+          gh release create "$GITHUB_REF_NAME" release/*
+          --verify-tag --generate-notes
+          --title "CODEOWNERS Guard ${{ steps.package.outputs.version }}"

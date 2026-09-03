@@ -1,13 +1,33 @@
-# CODEOWNERS Guard
+<h1 align="center">CODEOWNERS Guard</h1>
 
-[![CI](https://github.com/rarepops/codeowners-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/rarepops/codeowners-guard/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/rarepops/codeowners-guard/actions/workflows/codeql.yml/badge.svg)](https://github.com/rarepops/codeowners-guard/actions/workflows/codeql.yml)
-[![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![License: PolyForm Perimeter 1.0.0](https://img.shields.io/badge/license-PolyForm%20Perimeter%201.0.0-2f6f5e)](LICENSE)
+<p align="center"><strong>Fast, GitHub-native validation for the CODEOWNERS file that GitHub will actually use.</strong></p>
 
-Fast, GitHub-native validation for the CODEOWNERS file that GitHub will actually use.
+<p align="center">
+  <a href="https://github.com/rarepops/codeowners-guard/actions/workflows/ci.yml"><img src="https://github.com/rarepops/codeowners-guard/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/rarepops/codeowners-guard/actions/workflows/codeql.yml"><img src="https://github.com/rarepops/codeowners-guard/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" /></a>
+  <a href="https://github.com/rarepops/codeowners-guard/actions/workflows/release.yml"><img src="https://github.com/rarepops/codeowners-guard/actions/workflows/release.yml/badge.svg?event=push" alt="Release build" /></a>
+  <a href="https://github.com/rarepops/codeowners-guard/releases/latest"><img src="https://img.shields.io/github/v/release/rarepops/codeowners-guard?label=release&color=brightgreen" alt="Latest release" /></a>
+  <a href="https://github.com/rarepops/codeowners-guard/releases"><img src="https://img.shields.io/github/downloads/rarepops/codeowners-guard/total?label=downloads" alt="Downloads" /></a>
+  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-PolyForm%20Perimeter%201.0.1-blue" alt="License" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22%2B-339933?logo=node.js&logoColor=white" alt="Node.js 22 or newer" /></a>
+  <img src="https://img.shields.io/badge/action%20runtime-Node.js%2024-2088FF?logo=githubactions&logoColor=white" alt="GitHub Action runtime: Node.js 24" />
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey" alt="Platforms: Windows, Linux, and macOS" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/rarepops/codeowners-guard/commits/main"><img src="https://img.shields.io/github/last-commit/rarepops/codeowners-guard/main?label=last%20commit" alt="Last commit on main" /></a>
+  <a href="https://github.com/rarepops/codeowners-guard/issues"><img src="https://img.shields.io/github/issues/rarepops/codeowners-guard" alt="Open issues" /></a>
+</p>
 
 CODEOWNERS Guard combines GitHub's own diagnostics with local repository checks. It runs as a native Node.js action, so it works on Linux, macOS, and Windows without pulling a container image.
+
+## Why Guard
+
+- **GitHub is the syntax authority.** Diagnostics come from the same CODEOWNERS API that evaluates the selected branch, tag, or commit.
+- **Local checks cover the gaps.** Duplicate patterns, rules that match no tracked file, and files without an effective owner are reported separately.
+- **Action-first feedback.** Findings become file annotations and a job summary, with counts exposed as workflow outputs.
+- **No container startup.** The Action runs directly on Node.js 24 on Linux, macOS, and Windows runners.
+- **Useful outside Actions.** The same core ships as a cross-platform CLI with deterministic text and JSON output.
 
 ## Checks
 
@@ -118,4 +138,6 @@ npm run check
 
 ## License
 
-CODEOWNERS Guard is source-available under the [PolyForm Perimeter License 1.0.0](LICENSE). The license permits use, modification, and redistribution, but does not permit using the software to provide a competing product. Review the license terms before adopting or redistributing the project.
+CODEOWNERS Guard is source-available under the [PolyForm Perimeter License 1.0.1](LICENSE.md). The license permits use, modification, and redistribution, but does not permit using the software to provide a competing product. Review the license terms before adopting or redistributing the project.
+
+Copyright (c) 2026 Rares (rarepops).

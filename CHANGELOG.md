@@ -11,6 +11,6 @@ All notable changes to this project will be documented in this file.
 - Duplicate pattern, dangling pattern, and unowned file checks.
 - Cross-platform CLI with text and JSON output.
 
-### Licensing
+### License
 
-- Licensed under the PolyForm Perimeter License 1.0.0.
+- Licensed under the PolyForm Perimeter License 1.0.1.

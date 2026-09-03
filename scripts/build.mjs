@@ -1,4 +1,4 @@
-import { readFile, rm } from "node:fs/promises";
+import { chmod, readFile, rm } from "node:fs/promises";
 
 import { build } from "esbuild";
 
@@ -32,3 +32,5 @@ await Promise.all([
 		target: "node22",
 	}),
 ]);
+
+await chmod(new URL("../dist/cli.js", import.meta.url), 0o755);

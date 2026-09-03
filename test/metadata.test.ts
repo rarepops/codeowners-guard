@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
@@ -11,6 +12,11 @@ interface ActionMetadata {
 		using: string;
 		main: string;
 	};
+}
+
+interface PackageMetadata {
+	version: string;
+	license: string;
 }
 
 describe("GitHub metadata", () => {
@@ -48,5 +54,28 @@ describe("GitHub metadata", () => {
 			const document = parseDocument(source);
 			expect(document.errors, file).toEqual([]);
 		}
+	});
+
+	it("stores the packaged CLI as executable", () => {
+		const entry = execFileSync("git", ["ls-files", "--stage", "dist/cli.js"], {
+			encoding: "utf8",
+		});
+
+		expect(entry).toMatch(/^100755 /u);
+	});
+
+	it("keeps release and license metadata aligned", async () => {
+		const [packageSource, readme, license] = await Promise.all([
+			readFile(resolve("package.json"), "utf8"),
+			readFile(resolve("README.md"), "utf8"),
+			readFile(resolve("LICENSE.md"), "utf8"),
+		]);
+		const packageMetadata = JSON.parse(packageSource) as PackageMetadata;
+
+		expect(readme).toContain(
+			`rarepops/codeowners-guard@v${packageMetadata.version}`,
+		);
+		expect(packageMetadata.license).toBe("SEE LICENSE IN LICENSE.md");
+		expect(license).toMatch(/^# PolyForm Perimeter License 1\.0\.1$/mu);
 	});
 });
