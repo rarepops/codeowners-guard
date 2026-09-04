@@ -16,6 +16,9 @@ describe("packaged CLI", () => {
 		expect(result.status).toBe(0);
 		expect(result.stdout).not.toContain("\t");
 		expect(result.stdout).toContain(
+			"-c, --checks <list>       Comma-separated checks (default: duplicates,dangling,unowned)",
+		);
+		expect(result.stdout).toContain(
 			"      --max-issues <count>  Maximum retained issue details",
 		);
 		expect(result.stdout).toContain(
@@ -33,6 +36,17 @@ describe("packaged CLI", () => {
 		expect(result.status).toBe(2);
 		expect(result.stderr).toContain("Unknown option '--token'");
 		expect(result.stderr).not.toContain("should-not-appear");
+	});
+
+	it("rejects extra repository paths", () => {
+		const result = spawnSync(
+			process.execPath,
+			[cliPath, ".", "unexpected", "--checks", "duplicates"],
+			{ encoding: "utf8" },
+		);
+
+		expect(result.status).toBe(2);
+		expect(result.stderr).toContain("Expected at most one repository path");
 	});
 
 	it("names max-issues in validation errors", () => {

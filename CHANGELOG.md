@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.2 - 2026-09-04
+
+### Changed
+
+- Reject extra CLI repository-path arguments instead of silently ignoring them.
+- Document that the CLI defaults to local checks without `syntax`.
+
+### Fixed
+
+- Prevent GitHub syntax diagnostics from being combined with local checks for a different explicitly selected CODEOWNERS file.
+
 ## 0.1.1 - 2026-09-03
 
 ### Added

@@ -32,6 +32,9 @@ async function main(): Promise<void> {
 			version: { type: "boolean", short: "v" },
 		},
 	});
+	if (positionals.length > 1) {
+		throw new Error("Expected at most one repository path");
+	}
 
 	if (values.help === true) {
 		console.log(helpText);
@@ -98,8 +101,8 @@ const helpText = `codeowners-guard [repository-path] [options]
 Checks a repository's effective CODEOWNERS file.
 
 Options:
-  -c, --checks <list>       Comma-separated checks (duplicates,dangling,unowned,syntax)
-      --codeowners <path>   Use a specific CODEOWNERS file
+\x20\x20-c, --checks <list>       Comma-separated checks (default: duplicates,dangling,unowned)
+\x20\x20\x20\x20\x20\x20--codeowners <path>   Use a specific CODEOWNERS file for local checks
       --exclude <pattern>   Exclude files from local checks (repeatable)
       --fail-on <severity>  Failure threshold: warning or error (default: warning)
       --max-issues <count>  Maximum retained issue details (default: 1000, max: 10000)

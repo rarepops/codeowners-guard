@@ -66,7 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: rarepops/codeowners-guard@v0.1.1
+      - uses: rarepops/codeowners-guard@v0.1.2
         with:
           checks: syntax,duplicates,dangling,unowned
           exclude: |
@@ -74,7 +74,7 @@ jobs:
             coverage/
 ```
 
-For the strongest supply-chain pinning, replace `v0.1.1` with its full commit SHA. A complete least-privilege workflow is available in [examples/codeowners.yml](examples/codeowners.yml).
+For the strongest supply-chain pinning, replace `v0.1.2` with its full commit SHA. A complete least-privilege workflow is available in [examples/codeowners.yml](examples/codeowners.yml).
 
 Released tags are exercised from the independent public [integration repository](https://github.com/rarepops/codeowners-guard-integration).
 
@@ -88,7 +88,7 @@ The Action takes its API endpoint from GitHub's runner environment. It does not 
 | --- | --- | --- |
 | `github-token` | `${{ github.token }}` | Token used for GitHub diagnostics |
 | `path` | `.` | Repository path relative to `GITHUB_WORKSPACE` |
-| `codeowners` | auto-detect | Explicit CODEOWNERS path |
+| `codeowners` | auto-detect | Explicit CODEOWNERS path for local checks; with `syntax`, it must select GitHub's effective file |
 | `checks` | all checks | Comma-separated checks |
 | `exclude` | none | Newline-separated gitignore patterns omitted from local checks |
 | `repository` | `${{ github.repository }}` | Repository in `owner/name` form |
@@ -107,7 +107,7 @@ The action returns `valid`, `issue-count`, `error-count`, and `warning-count`.
 Run the published CLI without installing it globally:
 
 ```shell
-npx --yes codeowners-guard@0.1.1 . --checks duplicates,dangling,unowned
+npx --yes codeowners-guard@0.1.2 . --checks duplicates,dangling,unowned
 ```
 
 Use `codeowners-guard@latest` instead when you explicitly want the newest release. Pinning a version keeps local and CI runs reproducible.
@@ -119,6 +119,8 @@ npm ci
 npm run build
 node dist/cli.js .
 ```
+
+Without `--checks`, the CLI runs `duplicates`, `dangling`, and `unowned`. The `syntax` check is opt-in because it requires a GitHub repository and may require authentication.
 
 Local checks require no network access:
 
@@ -139,6 +141,8 @@ GITHUB_TOKEN=ghp_example node dist/cli.js . \
 ```
 
 Tokens are accepted only through `GITHUB_TOKEN` or `GH_TOKEN`; command-line token arguments are deliberately unsupported so credentials do not enter shell history or process listings.
+
+GitHub's syntax endpoint always validates the effective CODEOWNERS file at the selected ref. When `--codeowners` is combined with `syntax`, the explicit path must resolve to the same effective file in the checkout.
 
 Use `--max-issues` to retain up to 10,000 issue details in text or JSON output. The default is 1,000. Use `--fail-on error` to report local warnings without returning a failing exit status. Exit code `1` means validation failed, and exit code `2` means the command could not run.
 

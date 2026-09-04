@@ -22,6 +22,26 @@ describe("repository access", () => {
 		expect(codeowners.source).toBe("* @github");
 	});
 
+	it("uses an explicitly requested CODEOWNERS file", async () => {
+		const root = await mkdtemp(join(tmpdir(), "codeowners-guard-"));
+		await mkdir(join(root, "config"));
+		await writeFile(join(root, "CODEOWNERS"), "* @standard");
+		await writeFile(join(root, "config", "OWNERS"), "* @explicit");
+
+		const codeowners = await loadCodeownersFile(root, "config/OWNERS");
+
+		expect(codeowners.relativePath).toBe("config/OWNERS");
+		expect(codeowners.source).toBe("* @explicit");
+	});
+
+	it("lists every standard location when no CODEOWNERS file exists", async () => {
+		const root = await mkdtemp(join(tmpdir(), "codeowners-guard-"));
+
+		await expect(loadCodeownersFile(root)).rejects.toThrow(
+			'No CODEOWNERS file found at ".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS"',
+		);
+	});
+
 	it("rejects an explicit path outside the repository", async () => {
 		const root = await mkdtemp(join(tmpdir(), "codeowners-guard-"));
 
@@ -64,6 +84,14 @@ describe("repository access", () => {
 			"space π.txt",
 			"tracked.txt",
 		]);
+	});
+
+	it("reports when tracked files cannot be listed", async () => {
+		const root = await mkdtemp(join(tmpdir(), "codeowners-guard-"));
+
+		await expect(listTrackedFiles(root)).rejects.toThrow(
+			"Unable to list tracked files",
+		);
 	});
 
 	it.runIf(process.platform !== "win32")(

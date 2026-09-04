@@ -18,7 +18,7 @@ jobs:
           persist-credentials: false
 
       - name: Validate CODEOWNERS
-        uses: rarepops/codeowners-guard@v0.1.1
+        uses: rarepops/codeowners-guard@v0.1.2
         with:
           checks: syntax,duplicates,dangling,unowned
           exclude: |

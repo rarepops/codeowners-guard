@@ -6,6 +6,8 @@ CODEOWNERS Guard separates GitHub diagnostics from checks against the local Git 
 
 The `syntax` check calls GitHub's CODEOWNERS errors endpoint for the configured repository and ref. GitHub decides whether patterns and owners are valid. A token is normally required for private repositories.
 
+GitHub's endpoint validates the effective CODEOWNERS file from its standard locations and does not accept an arbitrary file path. When an explicit `codeowners` or `--codeowners` path is combined with `syntax`, it must resolve to the same effective file in the checkout. Use local checks without `syntax` to validate an alternate file.
+
 The Action validates `${{ github.sha }}` by default. The CLI requires `--repository owner/name` and reads a token from `GITHUB_TOKEN` or `GH_TOKEN`. It does not accept tokens as command-line arguments.
 
 ## Duplicates

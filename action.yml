@@ -12,7 +12,7 @@ inputs:
     required: false
     default: .
   codeowners:
-    description: Explicit CODEOWNERS path; otherwise GitHub's standard locations are searched
+    description: Explicit CODEOWNERS path for local checks; with syntax it must select GitHub's effective file
     required: false
   checks:
     description: Comma-separated checks (syntax,duplicates,dangling,unowned)

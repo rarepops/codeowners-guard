@@ -203,6 +203,34 @@ describe("runAction", () => {
 		expect(core.setOutput).toHaveBeenCalledWith("issue-count", 1);
 	});
 
+	it("writes a clean summary and valid output when no issues are found", async () => {
+		core.inputs.set("checks", "duplicates");
+		validateRepository.mockResolvedValue({
+			codeownersPath: "CODEOWNERS",
+			issues: [],
+			issueCount: 0,
+			errorCount: 0,
+			warningCount: 0,
+			stats: { files: 0, rules: 1, matchedRules: 0 },
+		});
+
+		await runAction();
+
+		expect(core.summary.addRaw).toHaveBeenCalledWith("No issues found.\n");
+		expect(core.setOutput).toHaveBeenCalledWith("valid", true);
+		expect(core.info).toHaveBeenCalledWith(
+			"CODEOWNERS validation passed with 0 warning(s)",
+		);
+		expect(core.setFailed).not.toHaveBeenCalled();
+	});
+
+	it("requires a checked-out GitHub workspace", async () => {
+		vi.stubEnv("GITHUB_WORKSPACE", "");
+
+		await expect(runAction()).rejects.toThrow("GITHUB_WORKSPACE is not set");
+		expect(validateRepository).not.toHaveBeenCalled();
+	});
+
 	it("rejects repository paths outside GITHUB_WORKSPACE", async () => {
 		core.inputs.set("path", "../outside");
 

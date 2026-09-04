@@ -40,6 +40,16 @@ export async function validateRepository(
 		options.repositoryPath,
 		options.codeownersPath,
 	);
+	if (options.checks.has("syntax") && options.codeownersPath !== undefined) {
+		const effectiveCodeowners = await loadCodeownersFile(
+			options.repositoryPath,
+		);
+		if (codeowners.absolutePath !== effectiveCodeowners.absolutePath) {
+			throw new Error(
+				"The syntax check can only validate GitHub's effective CODEOWNERS file; remove the explicit CODEOWNERS path or disable the syntax check",
+			);
+		}
+	}
 	const needsFiles = localChecks.has("dangling") || localChecks.has("unowned");
 	let syntaxPromise: Promise<ValidationIssue[]> = Promise.resolve([]);
 	if (options.checks.has("syntax")) {
