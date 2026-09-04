@@ -33,6 +33,24 @@ CODEOWNERS Guard combines GitHub's own diagnostics with local repository checks.
 - **No container startup.** The Action runs directly on Node.js 24 on Linux, macOS, and Windows runners.
 - **Useful outside Actions.** The same core ships as a cross-platform CLI with deterministic text and JSON output.
 
+## Feature Comparison
+
+The closest tools overlap, but they optimize for different workflows. This table compares documented behavior in fixed releases rather than treating every difference as an advantage.
+
+| Capability | CODEOWNERS Guard 0.1.2 | [`codeowners-validator` 0.7.4](https://github.com/mszostok/codeowners-validator/tree/v0.7.4) | [`codeowners-audit` 2.9.0](https://github.com/watson/codeowners-audit/tree/v2.9.0) |
+| --- | --- | --- | --- |
+| Delivery | Native Node.js 24 Action and npm CLI | Docker Action and Go CLI | npm CLI and CI command |
+| Syntax approach | GitHub CODEOWNERS errors API at a selected ref | Built-in syntax checker | Local GitHub-parity checks |
+| Duplicate patterns | Built in (`duplicates`) | Built in (`duppatterns`) | Not documented |
+| Dangling or missing patterns | Built in (`dangling`) | Built in (`files`) | Opt-in (`--fail-on-missing-paths`) |
+| Unowned tracked files | Built in (`unowned`) | Experimental (`notowned`) | Built in for non-interactive CI |
+| Separate owner and team lookup | Uses GitHub diagnostics; no extra lookup | Built in (`owners`) | Opt-in (`--validate-github-owners`) |
+| GitHub Actions feedback | File annotations, job summary, and outputs | Docker Action | Run the CLI in a workflow |
+| Interactive HTML coverage report | Not included | Not documented | Built in |
+| Team suggestions from Git history | Not included | Not documented | Opt-in (`--suggest-teams`) |
+
+The comparison reflects the linked release documentation checked on 2026-09-04. "Not documented" means the capability is not described there, not that it is impossible. Review each project's current documentation before choosing a tool.
+
 ## Checks
 
 | Check | What it reports | Severity |
