@@ -84,7 +84,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: rarepops/codeowners-guard@v0.1.2
+      - uses: rarepops/codeowners-guard@v0.1.3
         with:
           checks: syntax,duplicates,dangling,unowned
           exclude: |
@@ -92,7 +92,7 @@ jobs:
             coverage/
 ```
 
-For the strongest supply-chain pinning, replace `v0.1.2` with its full commit SHA. A complete least-privilege workflow is available in [examples/codeowners.yml](examples/codeowners.yml).
+For the strongest supply-chain pinning, replace `v0.1.3` with its full commit SHA. A complete least-privilege workflow is available in [examples/codeowners.yml](examples/codeowners.yml).
 
 Released tags are exercised from the independent public [integration repository](https://github.com/rarepops/codeowners-guard-integration).
 
@@ -125,7 +125,7 @@ The action returns `valid`, `issue-count`, `error-count`, and `warning-count`.
 Run the published CLI without installing it globally:
 
 ```shell
-npx --yes codeowners-guard@0.1.2 . --checks duplicates,dangling,unowned
+npx --yes codeowners-guard@0.1.3 . --checks duplicates,dangling,unowned
 ```
 
 Use `codeowners-guard@latest` instead when you explicitly want the newest release. Pinning a version keeps local and CI runs reproducible.
@@ -166,6 +166,21 @@ Use `--max-issues` to retain up to 10,000 issue details in text or JSON output. 
 
 See [troubleshooting](docs/troubleshooting.md) for authentication, ref mismatch, missing file, and exit-code guidance.
 
+### Explain Ownership
+
+Explain which local rules match a file and which rule wins:
+
+```shell
+npx --yes codeowners-guard@0.1.3 . --explain src/example.ts
+npx --yes codeowners-guard@0.1.3 . --explain src/example.ts --format json
+```
+
+This mode lists matching patterns in source order with their line numbers and owners. The last match wins, including ownerless rules that clear ownership. JSON includes `matches`, `winner` (or `null`), `owners`, and a `status` of `owned`, `cleared`, or `unmatched`.
+
+Paths are relative to the repository and may name files that are not yet tracked or do not exist. This is a local explanation, not GitHub syntax or owner validation. It uses the effective CODEOWNERS file unless `--codeowners` selects another one. Validation flags such as `--checks`, `--exclude`, and `--ref` cannot be combined with `--explain`.
+
+A completed explanation exits with `0`, even when the file has no owner. Invalid arguments or inability to read CODEOWNERS exit with `2`. Use the `unowned` check to enforce ownership in CI. Ownership explanations are available starting with version `0.1.3`.
+
 ## Design
 
 GitHub remains the authority for syntax diagnostics. Local checks operate on files returned by `git ls-files`, use a maintained gitignore-compatible matcher, and do not make separate user or team lookup calls. This keeps the Action small and avoids maintaining a second copy of GitHub's owner-resolution behavior.
@@ -180,6 +195,7 @@ The syntax check targets `ref`, while local checks target the checked-out workin
 - Terminal text, workflow annotations, and HTML summaries escape control and bidirectional characters.
 - Dependency installation disables lifecycle scripts; CI checks advisories, registry signatures, and dependency diffs.
 - Tagged release artifacts include SHA-256 checksums and GitHub build-provenance attestations.
+- After publication, a read-only job compares npm and GitHub tarballs, verifies checksums and provenance against the release ref and commit, and smoke-tests the registry-installed CLI under Node.js 24.
 
 ### Performance
 

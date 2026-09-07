@@ -134,3 +134,60 @@ jobs:
           gh release create "$GITHUB_REF_NAME" release/*
           --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes
           --title "CODEOWNERS Guard $RELEASE_VERSION"
+
+  verify:
+    if: github.ref_type == 'tag'
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    permissions:
+      attestations: read
+      contents: read
+    steps:
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Verify published artifacts and provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          mkdir github npm
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir github
+          (cd github && sha256sum --check SHA256SUMS.txt)
+          package="codeowners-guard-$RELEASE_VERSION.tgz"
+          npm pack "codeowners-guard@$RELEASE_VERSION" --pack-destination npm --ignore-scripts
+          cmp "github/$package" "npm/$package"
+          for artifact in "github/$package" github/SHA256SUMS.txt; do
+            gh attestation verify "$artifact" --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" \
+              --source-ref "$GITHUB_REF" --source-digest "$GITHUB_SHA"
+          done
+
+      - name: Smoke-test the installed npm CLI
+        env:
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          node -e 'if (process.versions.node.split(".")[0] !== "24") process.exit(1)'
+          mkdir smoke
+          cd smoke
+          npm init --yes
+          npm install --ignore-scripts --save-exact "codeowners-guard@$RELEASE_VERSION"
+          npm audit signatures
+          cli="$PWD/node_modules/.bin/codeowners-guard"
+          test "$("$cli" --version)" = "$RELEASE_VERSION"
+          mkdir fixture
+          cd fixture
+          git init
+          printf '/owned.txt @fixture-owner\n' > CODEOWNERS
+          printf 'owned\n' > owned.txt
+          git add CODEOWNERS owned.txt
+          "$cli" . --checks duplicates,dangling,unowned --exclude CODEOWNERS
+          printf 'unowned\n' > unowned.txt
+          git add unowned.txt
+          status=0
+          "$cli" . --checks unowned --exclude CODEOWNERS || status=$?
+          test "$status" -eq 1

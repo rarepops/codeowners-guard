@@ -9,6 +9,7 @@ import {
 	parseSeverity,
 } from "./config.js";
 import { escapeTerminalText } from "./display.js";
+import { explainOwnership, formatOwnershipExplanation } from "./explain.js";
 import { shouldFail } from "./model.js";
 import { formatTextReport } from "./report.js";
 import { validateRepository } from "./validate-repository.js";
@@ -23,6 +24,7 @@ async function main(): Promise<void> {
 			checks: { type: "string", short: "c" },
 			codeowners: { type: "string" },
 			exclude: { type: "string", multiple: true },
+			explain: { type: "string" },
 			"fail-on": { type: "string" },
 			format: { type: "string", short: "f" },
 			help: { type: "boolean", short: "h" },
@@ -56,6 +58,32 @@ async function main(): Promise<void> {
 	const format = values.format ?? "text";
 	if (format !== "text" && format !== "json") {
 		throw new Error('format must be either "text" or "json"');
+	}
+	if (values.explain !== undefined) {
+		for (const option of [
+			"checks",
+			"exclude",
+			"fail-on",
+			"max-issues",
+			"repository",
+			"ref",
+			"api-url",
+		] as const) {
+			if (values[option] !== undefined) {
+				throw new Error(`--explain cannot be combined with --${option}`);
+			}
+		}
+		const result = await explainOwnership(
+			positionals[0] ?? ".",
+			values.explain,
+			values.codeowners,
+		);
+		console.log(
+			format === "json"
+				? JSON.stringify(result, null, 2)
+				: formatOwnershipExplanation(result),
+		);
+		return;
 	}
 
 	const repository = values.repository ?? process.env.GITHUB_REPOSITORY;
@@ -103,7 +131,8 @@ Checks a repository's effective CODEOWNERS file.
 Options:
 \x20\x20-c, --checks <list>       Comma-separated checks (default: duplicates,dangling,unowned)
 \x20\x20\x20\x20\x20\x20--codeowners <path>   Use a specific CODEOWNERS file for local checks
-      --exclude <pattern>   Exclude files from local checks (repeatable)
+\x20\x20\x20\x20\x20\x20--exclude <pattern>   Exclude files from local checks (repeatable)
+\x20\x20\x20\x20\x20\x20--explain <path>      Explain local ownership of a repository-relative file
       --fail-on <severity>  Failure threshold: warning or error (default: warning)
       --max-issues <count>  Maximum retained issue details (default: 1000, max: 10000)
   -f, --format <format>     Output format: text or json (default: text)

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.3 - 2026-09-07
+
+### Added
+
+- Local CLI ownership explanations with matching rule lines, last-match-wins ownership, ownerless overrides, and text or JSON output.
+- Read-only post-publication verification of artifact identity, checksums, release-bound provenance, npm signatures, and installed CLI behavior under Node.js 24.
+
 ## 0.1.2 - 2026-09-04
 
 ### Added
