@@ -183,7 +183,7 @@ A completed explanation exits with `0`, even when the file has no owner. Invalid
 
 ## Design
 
-GitHub remains the authority for syntax diagnostics. Local checks operate on files returned by `git ls-files`, use a maintained gitignore-compatible matcher, and do not make separate user or team lookup calls. This keeps the Action small and avoids maintaining a second copy of GitHub's owner-resolution behavior.
+GitHub remains the authority for syntax diagnostics. Local checks operate on files returned by `git ls-files`, use a maintained gitignore-compatible matcher with exceptions verified against GitHub's own matcher, and do not make separate user or team lookup calls. This keeps the Action small and avoids maintaining a second copy of GitHub's owner-resolution behavior.
 
 The syntax check targets `ref`, while local checks target the checked-out working tree. In normal Actions usage both refer to the same commit. For uncommitted local changes, run local checks only or push the change to a ref before requesting GitHub diagnostics.
 

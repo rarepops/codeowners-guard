@@ -18,6 +18,10 @@ The syntax check targets the configured GitHub ref, while local checks inspect t
 
 Check pattern capitalization and exclusions. Matching is case-sensitive, and excluded files cannot satisfy a dangling rule. Use `git ls-files --cached` to inspect the exact local file set.
 
+## Ownership Changed After Upgrading to 0.2.0
+
+Version 0.2.0 matches patterns that end in a lone `*` the way GitHub does. A rule such as `docs/*` owns files directly inside `docs/` but not files in its subfolders, so `unowned` and `dangling` can report findings that earlier versions missed, and `--explain` can name a different winning rule. Use `docs/` when a rule should cover nested files.
+
 ## A CODEOWNERS File Is Not Found
 
 Without an explicit path, Guard searches `.github/CODEOWNERS`, `CODEOWNERS`, then `docs/CODEOWNERS`. File names are case-sensitive. Symbolic links are rejected to keep reads within the checked-out workspace.

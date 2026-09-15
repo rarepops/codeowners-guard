@@ -80,6 +80,21 @@ describe("ownership explanations", () => {
 		).rejects.toThrow("within the repository");
 	});
 
+	it("follows GitHub's documented docs/* example for nested files", async () => {
+		const root = await fixture("* @a\ndocs/* @b\n");
+
+		const nested = await explainOwnership(
+			root,
+			"docs/build-app/troubleshooting.md",
+		);
+		expect(nested.winner?.line).toBe(1);
+		expect(nested.matches.map((rule) => rule.line)).toEqual([1]);
+
+		const direct = await explainOwnership(root, "docs/getting-started.md");
+		expect(direct.winner?.line).toBe(2);
+		expect(direct.matches.map((rule) => rule.line)).toEqual([1, 2]);
+	});
+
 	it.each([
 		"",
 		".",

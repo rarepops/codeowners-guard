@@ -106,4 +106,37 @@ describe("validateLocal", () => {
 		expect(result.warningCount).toBe(10_000);
 		expect(result.errorCount).toBe(0);
 	});
+
+	it("reports a lone-star rule that only matches nested files as dangling", () => {
+		const result = validateLocal({
+			source: ["* @default", "docs/* @docs"].join("\n"),
+			codeownersPath: "CODEOWNERS",
+			files: ["README.md", "docs/build-app/troubleshooting.md"],
+			checks: new Set<CheckName>(["dangling"]),
+		});
+
+		expect(result.issues).toEqual([
+			expect.objectContaining({
+				check: "dangling",
+				code: "dangling-pattern",
+				line: 2,
+			}),
+		]);
+	});
+
+	it("reports files nested under a lone-star rule as unowned, as GitHub does", () => {
+		const result = validateLocal({
+			source: "docs/* @docs",
+			codeownersPath: "CODEOWNERS",
+			files: ["docs/getting-started.md", "docs/build-app/troubleshooting.md"],
+			checks: new Set<CheckName>(["unowned"]),
+		});
+
+		expect(result.issues).toEqual([
+			expect.objectContaining({
+				check: "unowned",
+				path: "docs/build-app/troubleshooting.md",
+			}),
+		]);
+	});
 });

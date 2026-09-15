@@ -1,6 +1,7 @@
 import ignore from "ignore";
 import type { CodeownersRule } from "./parser.js";
 import { normalizeRepositoryPath } from "./path.js";
+import { analyzePattern, compileExactPattern } from "./pattern.js";
 
 export interface CompiledRule {
 	rule: CodeownersRule;
@@ -9,6 +10,15 @@ export interface CompiledRule {
 
 export function compileRules(rules: readonly CodeownersRule[]): CompiledRule[] {
 	return rules.map((rule) => {
+		const syntax = analyzePattern(rule.pattern);
+		if (syntax.invalid) {
+			return { rule, matches: () => false };
+		}
+		if (syntax.endsWithLoneStar) {
+			const exact = compileExactPattern(rule.pattern);
+			return { rule, matches: (path: string) => exact.test(path) };
+		}
+
 		const matcher = ignore({ ignorecase: false }).add(rule.pattern);
 
 		return {

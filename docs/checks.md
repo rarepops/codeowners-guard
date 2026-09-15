@@ -38,6 +38,15 @@ The `unowned` check reports a tracked file when no rule matches it or when its f
 
 In this example, tracked files under `generated/` are explicitly unowned.
 
+## Matching
+
+Local checks and `--explain` apply GitHub's last-match-wins rule using a gitignore-compatible matcher, with two exceptions verified against GitHub's own matcher:
+
+- A pattern that contains a slash and ends in a lone `*` matches files at that depth only. As GitHub documents, `docs/*` matches `docs/getting-started.md` but not `docs/build-app/troubleshooting.md`. Use `docs/` when a rule should cover nested files.
+- A pattern containing an unescaped `[` or `]` matches nothing, because GitHub rejects the whole line. Write `\[` and `\]` to match brackets literally.
+
+Every other pattern keeps gitignore behavior, including folder patterns such as `/build/logs/` and `apps/`. The `exclude` option always uses plain gitignore patterns.
+
 ## Invalid Lines
 
 When syntax and local checks run together, lines rejected by GitHub are omitted from local matching. This prevents an invalid rule from creating misleading local results. Local-only runs assume every parsed line is valid.
