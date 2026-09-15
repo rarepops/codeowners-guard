@@ -23,6 +23,7 @@ npm run check
 
 - `src/parser.ts` reads CODEOWNERS rules without attempting to replace GitHub's syntax authority.
 - `src/matcher.ts` implements last-match-wins ownership over a gitignore-compatible matcher.
+- `src/pattern.ts` analyzes CODEOWNERS pattern syntax and compiles patterns that GitHub matches without folder expansion.
 - `src/local-validator.ts` owns duplicate, dangling-pattern, and unowned-file checks.
 - `src/github-validator.ts` maps GitHub's CODEOWNERS diagnostics into the shared issue model.
 - `src/action.ts` and `src/cli.ts` expose the same core through GitHub Actions and the command line.
