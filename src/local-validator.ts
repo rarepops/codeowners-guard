@@ -6,10 +6,19 @@ import {
 	IssueCollector,
 	type ValidationResult,
 } from "./model.js";
-import type { CodeownersRule } from "./parser.js";
-import { findDuplicatePatterns, parseCodeowners } from "./parser.js";
+import {
+	findDuplicatePatterns,
+	findRulesRepeatedLater,
+	parseCodeowners,
+} from "./parser.js";
 import { normalizeRepositoryPath } from "./path.js";
 import { analyzePattern } from "./pattern.js";
+import {
+	formatShadowedMessage,
+	isCatchAllPattern,
+	ShadowTracker,
+	shadowedRuleSuggestion,
+} from "./shadowing.js";
 
 export interface LocalValidationOptions {
 	source: string;
@@ -28,18 +37,24 @@ export function validateLocal(
 	const rules = parseCodeowners(options.source).filter(
 		(rule) => !skipLines.has(rule.line),
 	);
+	const checksDuplicates = options.checks.has("duplicates");
 	const checksDangling = options.checks.has("dangling");
+	const checksShadowed = options.checks.has("shadowed");
 	const checksUnowned = options.checks.has("unowned");
-	const checksFiles = checksDangling || checksUnowned;
+	const checksFiles = checksDangling || checksShadowed || checksUnowned;
 	const compiledRules = checksFiles ? compileRules(rules) : [];
 	const files = checksFiles
 		? filterFiles(options.files, options.exclude ?? [])
 		: [];
 	const matchedRules = new Uint8Array(rules.length);
 	let matchedRuleCount = 0;
+	const shadowTracker = checksShadowed
+		? new ShadowTracker(rules.length)
+		: undefined;
+	const matchedIndices: number[] = [];
 	const issues = new IssueCollector(options.maxIssues ?? 1_000);
 
-	if (options.checks.has("duplicates")) {
+	if (checksDuplicates) {
 		for (const duplicate of findDuplicatePatterns(rules)) {
 			issues.add({
 				check: "duplicates" as const,
@@ -53,23 +68,24 @@ export function validateLocal(
 	}
 
 	for (const file of files) {
-		let owningRule: CodeownersRule | undefined;
-		if (checksFiles) {
-			for (let index = 0; index < compiledRules.length; index += 1) {
-				const rule = compiledRules[index];
-				if (rule?.matches(file)) {
-					if (matchedRules[index] === 0) {
-						matchedRules[index] = 1;
-						matchedRuleCount += 1;
-					}
-					if (checksUnowned) {
-						owningRule = rule.rule;
-					}
+		let owningIndex = -1;
+		matchedIndices.length = 0;
+		for (let index = 0; index < compiledRules.length; index += 1) {
+			if (compiledRules[index]?.matches(file)) {
+				if (matchedRules[index] === 0) {
+					matchedRules[index] = 1;
+					matchedRuleCount += 1;
+				}
+				owningIndex = index;
+				if (shadowTracker !== undefined) {
+					matchedIndices.push(index);
 				}
 			}
 		}
+		shadowTracker?.observe(matchedIndices);
 
 		if (checksUnowned) {
+			const owningRule = rules[owningIndex];
 			if (owningRule === undefined || owningRule.owners.length === 0) {
 				issues.add({
 					check: "unowned",
@@ -102,6 +118,38 @@ export function validateLocal(
 						: `Pattern ${pattern} does not match a tracked file`,
 				});
 			}
+		}
+	}
+
+	if (shadowTracker !== undefined) {
+		const repeatedLater = checksDuplicates
+			? findRulesRepeatedLater(rules)
+			: new Set<number>();
+		for (const shadowed of shadowTracker.shadowedRules()) {
+			const rule = rules[shadowed.index];
+			if (
+				rule === undefined ||
+				isCatchAllPattern(rule.pattern) ||
+				repeatedLater.has(shadowed.index)
+			) {
+				continue;
+			}
+			issues.add({
+				check: "shadowed",
+				code: "shadowed-rule",
+				severity: "warning",
+				path: options.codeownersPath,
+				line: rule.line,
+				message: formatShadowedMessage(
+					rule.pattern,
+					shadowed.matchedFiles,
+					shadowed.overridingIndices.flatMap((index) => {
+						const overriding = rules[index];
+						return overriding === undefined ? [] : [overriding.line];
+					}),
+				),
+				suggestion: shadowedRuleSuggestion,
+			});
 		}
 	}
 

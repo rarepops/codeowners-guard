@@ -5,6 +5,7 @@ import type { CheckName } from "../src/model.js";
 
 const duplicateOnly = new Set<CheckName>(["duplicates"]);
 const ownershipChecks = new Set<CheckName>(["dangling", "unowned"]);
+const shadowedChecks = new Set<CheckName>(["dangling", "shadowed", "unowned"]);
 
 const duplicateSource = Array.from(
 	{ length: 10_000 },
@@ -42,6 +43,21 @@ describe("local validation", () => {
 				checks: ownershipChecks,
 			});
 		}).run({ iterations: 3, time: 100, warmupIterations: 1, warmupTime: 0 });
+		printResult(result);
+	});
+
+	test("ownership throughput with the shadowed check", async ({ bench }) => {
+		const result = await bench(
+			"10,000 files x 100 ownership rules with shadowed",
+			() => {
+				validateLocal({
+					source: ownershipSource,
+					codeownersPath: "CODEOWNERS",
+					files,
+					checks: shadowedChecks,
+				});
+			},
+		).run({ iterations: 3, time: 100, warmupIterations: 1, warmupTime: 0 });
 		printResult(result);
 	});
 });

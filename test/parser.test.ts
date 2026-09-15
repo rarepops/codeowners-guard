@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { findDuplicatePatterns, parseCodeowners } from "../src/parser.js";
+import {
+	findDuplicatePatterns,
+	findRulesRepeatedLater,
+	parseCodeowners,
+} from "../src/parser.js";
 
 describe("parseCodeowners", () => {
 	it("parses rules while ignoring comments and blank lines", () => {
@@ -40,5 +44,13 @@ describe("parseCodeowners", () => {
 				message: 'Pattern "*.ts" duplicates line 1',
 			},
 		]);
+	});
+
+	it("finds rules whose exact pattern appears again later", () => {
+		const rules = parseCodeowners(
+			["/docs/ @a", "/docs @b", "/docs/ @c", "*.md @d", "/docs/ @e"].join("\n"),
+		);
+
+		expect(findRulesRepeatedLater(rules)).toEqual(new Set([0, 2]));
 	});
 });

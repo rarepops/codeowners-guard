@@ -85,6 +85,21 @@ describe("validateRepository orchestration", () => {
 		);
 	});
 
+	it("enumerates files when only the shadowed check is requested", async () => {
+		await validateRepository({
+			repositoryPath: "/repo",
+			checks: new Set(["shadowed"]),
+		});
+
+		expect(repository.listTrackedFiles).toHaveBeenCalledWith("/repo");
+		expect(localValidator.validateLocal).toHaveBeenCalledWith(
+			expect.objectContaining({
+				checks: new Set(["shadowed"]),
+				files: ["src/app.ts"],
+			}),
+		);
+	});
+
 	it("rejects syntax checks for a non-effective explicit CODEOWNERS file", async () => {
 		repository.loadCodeownersFile
 			.mockResolvedValueOnce({

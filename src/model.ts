@@ -2,6 +2,7 @@ export const checkNames = [
 	"syntax",
 	"duplicates",
 	"dangling",
+	"shadowed",
 	"unowned",
 ] as const;
 

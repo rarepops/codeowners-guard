@@ -50,7 +50,10 @@ export async function validateRepository(
 			);
 		}
 	}
-	const needsFiles = localChecks.has("dangling") || localChecks.has("unowned");
+	const needsFiles =
+		localChecks.has("dangling") ||
+		localChecks.has("shadowed") ||
+		localChecks.has("unowned");
 	let syntaxPromise: Promise<ValidationIssue[]> = Promise.resolve([]);
 	if (options.checks.has("syntax")) {
 		if (options.github === undefined) {

@@ -53,6 +53,26 @@ export function* findDuplicatePatterns(
 	}
 }
 
+export function findRulesRepeatedLater(
+	rules: readonly CodeownersRule[],
+): Set<number> {
+	const laterPatterns = new Set<string>();
+	const repeated = new Set<number>();
+
+	for (let index = rules.length - 1; index >= 0; index -= 1) {
+		const rule = rules[index];
+		if (rule === undefined) {
+			continue;
+		}
+		if (laterPatterns.has(rule.pattern)) {
+			repeated.add(index);
+		}
+		laterPatterns.add(rule.pattern);
+	}
+
+	return repeated;
+}
+
 function splitFields(line: string): string[] {
 	const fields: string[] = [];
 	let field = "";

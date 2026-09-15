@@ -21,6 +21,10 @@ describe("configuration parsing", () => {
 		expect(() => parseChecks("owners", [])).toThrow("Unknown check");
 	});
 
+	it("accepts the shadowed check", () => {
+		expect(parseChecks("shadowed", [])).toEqual(new Set(["shadowed"]));
+	});
+
 	it("parses severity and annotation limits", () => {
 		expect(parseSeverity("", "warning")).toBe("warning");
 		expect(parseSeverity("ERROR", "warning")).toBe("error");

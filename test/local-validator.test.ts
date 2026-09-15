@@ -6,8 +6,12 @@ import type { CheckName } from "../src/model.js";
 const allLocalChecks = new Set<CheckName>([
 	"duplicates",
 	"dangling",
+	"shadowed",
 	"unowned",
 ]);
+
+const shadowedSuggestion =
+	"Remove the rule, or move it below the rules that override it if it should take precedence.";
 
 describe("validateLocal", () => {
 	it("reports duplicates, dangling patterns, and unowned files", () => {
@@ -182,5 +186,186 @@ describe("validateLocal", () => {
 		});
 
 		expect(result.issues).toEqual([]);
+	});
+
+	it("reports rules that match files but never win them", () => {
+		const result = validateLocal({
+			source: [
+				"* @org/platform",
+				"/docs/*.md @org/writers",
+				"/docs/ @org/docs",
+				"/tools/ @org/devex",
+				"/tools/*.sh @org/shell",
+			].join("\n"),
+			codeownersPath: "CODEOWNERS",
+			files: [
+				"docs/index.md",
+				"docs/guide/setup.md",
+				"tools/build.sh",
+				"tools/release.sh",
+				"src/app.ts",
+			],
+			checks: new Set<CheckName>(["shadowed"]),
+		});
+
+		expect(result.issues).toEqual([
+			{
+				check: "shadowed",
+				code: "shadowed-rule",
+				severity: "warning",
+				path: "CODEOWNERS",
+				line: 2,
+				message:
+					'Pattern "/docs/*.md" never takes effect: its only matching file is overridden by line 3',
+				suggestion: shadowedSuggestion,
+			},
+			{
+				check: "shadowed",
+				code: "shadowed-rule",
+				severity: "warning",
+				path: "CODEOWNERS",
+				line: 4,
+				message:
+					'Pattern "/tools/" never takes effect: all 2 matching files are overridden by line 5',
+				suggestion: shadowedSuggestion,
+			},
+		]);
+	});
+
+	it("ignores partial overrides and exempts catch-all rules but not /*", () => {
+		const result = validateLocal({
+			source: [
+				"* @all",
+				"** @all",
+				"/** @all",
+				"/* @root",
+				"/src/ @app",
+				"/src/lib/ @lib",
+				"/README.md @docs",
+			].join("\n"),
+			codeownersPath: "CODEOWNERS",
+			files: ["README.md", "src/app.ts", "src/lib/util.ts"],
+			checks: new Set<CheckName>(["shadowed"]),
+		});
+
+		expect(result.issues).toEqual([
+			{
+				check: "shadowed",
+				code: "shadowed-rule",
+				severity: "warning",
+				path: "CODEOWNERS",
+				line: 4,
+				message:
+					'Pattern "/*" never takes effect: its only matching file is overridden by line 7',
+				suggestion: shadowedSuggestion,
+			},
+		]);
+	});
+
+	it("leaves exact duplicates to the duplicates check unless it is disabled", () => {
+		const source = ["/docs/ @docs", "/docs/ @writers"].join("\n");
+		const files = ["docs/guide.md", "docs/api.md", "docs/faq.md"];
+
+		const withDuplicates = validateLocal({
+			source,
+			codeownersPath: "CODEOWNERS",
+			files,
+			checks: new Set<CheckName>(["duplicates", "shadowed"]),
+		});
+		expect(withDuplicates.issues).toEqual([
+			expect.objectContaining({ check: "duplicates", line: 2 }),
+		]);
+
+		const withoutDuplicates = validateLocal({
+			source,
+			codeownersPath: "CODEOWNERS",
+			files,
+			checks: new Set<CheckName>(["shadowed"]),
+		});
+		expect(withoutDuplicates.issues).toEqual([
+			expect.objectContaining({
+				check: "shadowed",
+				line: 1,
+				message:
+					'Pattern "/docs/" never takes effect: all 3 matching files are overridden by line 2',
+			}),
+		]);
+	});
+
+	it("keeps shadowed findings separate from dangling and unowned findings", () => {
+		const result = validateLocal({
+			source: ["/generated/api/ @api", "/generated/", "/missing/ @nobody"].join(
+				"\n",
+			),
+			codeownersPath: "CODEOWNERS",
+			files: ["generated/api/client.ts", "generated/api/types.ts"],
+			checks: new Set<CheckName>(["dangling", "shadowed", "unowned"]),
+		});
+
+		expect(result.issues).toEqual([
+			expect.objectContaining({
+				check: "shadowed",
+				line: 1,
+				message:
+					'Pattern "/generated/api/" never takes effect: all 2 matching files are overridden by line 2',
+			}),
+			expect.objectContaining({ check: "dangling", line: 3 }),
+			expect.objectContaining({
+				check: "unowned",
+				path: "generated/api/client.ts",
+			}),
+			expect.objectContaining({
+				check: "unowned",
+				path: "generated/api/types.ts",
+			}),
+		]);
+	});
+
+	it("ignores excluded files and syntax-rejected lines when finding shadowed rules", () => {
+		const result = validateLocal({
+			source: [
+				"/src/ @app",
+				"/src/legacy/ @legacy",
+				"/src/legacy/ @unused",
+			].join("\n"),
+			codeownersPath: "CODEOWNERS",
+			files: ["src/main.ts", "src/legacy/old.ts"],
+			checks: new Set<CheckName>(["shadowed"]),
+			exclude: ["src/main.ts"],
+			skipLines: new Set([3]),
+		});
+
+		expect(result.issues).toEqual([
+			expect.objectContaining({
+				check: "shadowed",
+				line: 1,
+				message:
+					'Pattern "/src/" never takes effect: its only matching file is overridden by line 2',
+			}),
+		]);
+	});
+
+	it("scopes local checks to chosen folders with negated exclusions", () => {
+		const files = [
+			"README.md",
+			"src/app.ts",
+			"packages/api/index.ts",
+			"packages/web/index.ts",
+			"test/app.test.ts",
+		];
+		const unownedPaths = (exclude: string[]) =>
+			validateLocal({
+				source: "",
+				codeownersPath: "CODEOWNERS",
+				files,
+				checks: new Set<CheckName>(["unowned"]),
+				exclude,
+			}).issues.map((issue) => issue.path);
+
+		expect(unownedPaths(["/*", "!/src/"])).toEqual(["src/app.ts"]);
+		expect(
+			unownedPaths(["/*", "!/packages/", "/packages/*", "!/packages/api/"]),
+		).toEqual(["packages/api/index.ts"]);
+		expect(unownedPaths(["/*", "!/packages/api/"])).toEqual([]);
 	});
 });

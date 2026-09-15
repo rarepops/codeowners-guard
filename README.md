@@ -203,7 +203,7 @@ The syntax check targets `ref`, while local checks target the checked-out workin
 - GitHub diagnostics and tracked-file enumeration run concurrently.
 - Each file is normalized once and evaluated against ownership rules in one pass, while duplicate-only checks skip Git entirely.
 - Finding details are retained within configured bounds while exact counts and failure behavior cover every finding.
-- `npm run bench` measures a 10,000-rule duplicate workload and a 10,000-file by 100-rule ownership workload.
+- `npm run bench` measures a 10,000-rule duplicate workload and a 10,000-file by 100-rule ownership workload, with and without the `shadowed` check.
 
 ## Development
 
