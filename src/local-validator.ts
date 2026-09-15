@@ -9,6 +9,7 @@ import {
 import type { CodeownersRule } from "./parser.js";
 import { findDuplicatePatterns, parseCodeowners } from "./parser.js";
 import { normalizeRepositoryPath } from "./path.js";
+import { analyzePattern } from "./pattern.js";
 
 export interface LocalValidationOptions {
 	source: string;
@@ -88,13 +89,17 @@ export function validateLocal(
 		for (let index = 0; index < rules.length; index += 1) {
 			const rule = rules[index];
 			if (rule !== undefined && matchedRules[index] === 0) {
+				const pattern = JSON.stringify(rule.pattern);
+				const invalid = analyzePattern(rule.pattern).invalid;
 				issues.add({
 					check: "dangling",
-					code: "dangling-pattern",
+					code: invalid ? "invalid-pattern" : "dangling-pattern",
 					severity: "warning",
 					path: options.codeownersPath,
 					line: rule.line,
-					message: `Pattern ${JSON.stringify(rule.pattern)} does not match a tracked file`,
+					message: invalid
+						? `Pattern ${pattern} is rejected by GitHub: escape [ and ] with a backslash`
+						: `Pattern ${pattern} does not match a tracked file`,
 				});
 			}
 		}

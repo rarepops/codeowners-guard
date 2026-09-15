@@ -139,4 +139,48 @@ describe("validateLocal", () => {
 			}),
 		]);
 	});
+
+	it("reports patterns GitHub rejects as invalid instead of dangling", () => {
+		const result = validateLocal({
+			source: ["* @default", "/c10/[ab].txt @docs", "/c30/a]b.txt @docs"].join(
+				"\n",
+			),
+			codeownersPath: "CODEOWNERS",
+			files: ["c10/a.txt", "c30/a]b.txt"],
+			checks: new Set<CheckName>(["dangling"]),
+		});
+
+		expect(result.issues).toEqual([
+			{
+				check: "dangling",
+				code: "invalid-pattern",
+				severity: "warning",
+				path: "CODEOWNERS",
+				line: 2,
+				message:
+					'Pattern "/c10/[ab].txt" is rejected by GitHub: escape [ and ] with a backslash',
+			},
+			{
+				check: "dangling",
+				code: "invalid-pattern",
+				severity: "warning",
+				path: "CODEOWNERS",
+				line: 3,
+				message:
+					'Pattern "/c30/a]b.txt" is rejected by GitHub: escape [ and ] with a backslash',
+			},
+		]);
+	});
+
+	it("leaves lines GitHub already rejected to the syntax check", () => {
+		const result = validateLocal({
+			source: ["* @default", "/c10/[ab].txt @docs"].join("\n"),
+			codeownersPath: "CODEOWNERS",
+			files: ["c10/a.txt"],
+			checks: new Set<CheckName>(["dangling"]),
+			skipLines: new Set([2]),
+		});
+
+		expect(result.issues).toEqual([]);
+	});
 });

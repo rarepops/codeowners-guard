@@ -49,7 +49,7 @@ Every other pattern keeps gitignore behavior, including folder patterns such as 
 
 ## Invalid Lines
 
-When syntax and local checks run together, lines rejected by GitHub are omitted from local matching. This prevents an invalid rule from creating misleading local results. Local-only runs assume every parsed line is valid.
+When syntax and local checks run together, lines rejected by GitHub are omitted from local matching. This prevents an invalid rule from creating misleading local results. Local-only runs cannot ask GitHub, so they detect the invalid form verified against GitHub: a pattern with an unescaped `[` or `]`. Such a rule matches nothing, and the `dangling` check reports it with the code `invalid-pattern`. Local-only runs assume every other parsed line is valid.
 
 ## Result Limits
 
