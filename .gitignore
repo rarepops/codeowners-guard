@@ -4,3 +4,5 @@ coverage/
 .env.*
 *.tgz
 npm-debug.log*
+/design/
+/docs/superpowers/
