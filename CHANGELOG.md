@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.2.0 - 2026-09-16
+
+### Added
+
+- `shadowed` check reporting CODEOWNERS rules that match tracked files but never take effect, because later rules override every one of those files.
+- GitHub App token guidance for the Action's `github-token` input.
+- Documentation for running local checks on selected folders with negated `exclude` patterns.
+
+### Changed
+
+- Run the `shadowed` check by default in the Action and the CLI.
+
+### Fixed
+
+- Match patterns that end in a lone `*`, such as `docs/*`, only against files at that depth, as GitHub does. Files in subfolders are no longer treated as owned, so `unowned` and `dangling` can report new findings; use `docs/` when a rule should cover nested files.
+- Treat patterns containing an unescaped `[` or `]` as matching nothing, as GitHub does, and report them as `invalid-pattern` in local-only runs.
+
 ## 0.1.3 - 2026-09-07
 
 ### Added

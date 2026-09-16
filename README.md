@@ -86,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: rarepops/codeowners-guard@v0.1.3
+      - uses: rarepops/codeowners-guard@v0.2.0
         with:
           checks: syntax,duplicates,dangling,shadowed,unowned
           exclude: |
@@ -94,7 +94,7 @@ jobs:
             coverage/
 ```
 
-For the strongest supply-chain pinning, replace `v0.1.3` with its full commit SHA. A complete least-privilege workflow is available in [examples/codeowners.yml](examples/codeowners.yml).
+For the strongest supply-chain pinning, replace `v0.2.0` with its full commit SHA. A complete least-privilege workflow is available in [examples/codeowners.yml](examples/codeowners.yml).
 
 Released tags are exercised from the independent public [integration repository](https://github.com/rarepops/codeowners-guard-integration).
 
@@ -112,7 +112,7 @@ The default `${{ github.token }}` is enough to validate the repository that runs
         with:
           app-id: ${{ vars.CODEOWNERS_APP_ID }}
           private-key: ${{ secrets.CODEOWNERS_APP_PRIVATE_KEY }}
-      - uses: rarepops/codeowners-guard@v0.1.3
+      - uses: rarepops/codeowners-guard@v0.2.0
         with:
           github-token: ${{ steps.app-token.outputs.token }}
 ```
@@ -142,7 +142,7 @@ The action returns `valid`, `issue-count`, `error-count`, and `warning-count`.
 Run the published CLI without installing it globally:
 
 ```shell
-npx --yes codeowners-guard@0.1.3 . --checks duplicates,dangling,shadowed,unowned
+npx --yes codeowners-guard@0.2.0 . --checks duplicates,dangling,shadowed,unowned
 ```
 
 Use `codeowners-guard@latest` instead when you explicitly want the newest release. Pinning a version keeps local and CI runs reproducible.
@@ -188,8 +188,8 @@ See [troubleshooting](docs/troubleshooting.md) for authentication, ref mismatch,
 Explain which local rules match a file and which rule wins:
 
 ```shell
-npx --yes codeowners-guard@0.1.3 . --explain src/example.ts
-npx --yes codeowners-guard@0.1.3 . --explain src/example.ts --format json
+npx --yes codeowners-guard@0.2.0 . --explain src/example.ts
+npx --yes codeowners-guard@0.2.0 . --explain src/example.ts --format json
 ```
 
 This mode lists matching patterns in source order with their line numbers and owners. The last match wins, including ownerless rules that clear ownership. JSON includes `matches`, `winner` (or `null`), `owners`, and a `status` of `owned`, `cleared`, or `unmatched`.
