@@ -18,6 +18,10 @@ The syntax check targets the configured GitHub ref, while local checks inspect t
 
 Check pattern capitalization and exclusions. Matching is case-sensitive, and excluded files cannot satisfy a dangling rule. Use `git ls-files --cached` to inspect the exact local file set.
 
+## A Rule Is Unexpectedly Shadowed
+
+Run `codeowners-guard . --explain <path>` on one of the rule's files to see every matching rule and which later line wins. Remove the shadowed rule, or move it below the rules that override it if it should take precedence. The catch-all patterns `*`, `**`, and `/**` are never reported.
+
 ## Ownership Changed After Upgrading to 0.2.0
 
 Version 0.2.0 matches patterns that end in a lone `*` the way GitHub does. A rule such as `docs/*` owns files directly inside `docs/` but not files in its subfolders, so `unowned` and `dangling` can report findings that earlier versions missed, and `--explain` can name a different winning rule. Use `docs/` when a rule should cover nested files.
