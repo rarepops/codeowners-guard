@@ -86,7 +86,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: rarepops/codeowners-guard@v0.1.3
         with:
-          checks: syntax,duplicates,dangling,unowned
+          checks: syntax,duplicates,dangling,shadowed,unowned
           exclude: |
             dist/
             coverage/
@@ -125,7 +125,7 @@ The action returns `valid`, `issue-count`, `error-count`, and `warning-count`.
 Run the published CLI without installing it globally:
 
 ```shell
-npx --yes codeowners-guard@0.1.3 . --checks duplicates,dangling,unowned
+npx --yes codeowners-guard@0.1.3 . --checks duplicates,dangling,shadowed,unowned
 ```
 
 Use `codeowners-guard@latest` instead when you explicitly want the newest release. Pinning a version keeps local and CI runs reproducible.
@@ -138,13 +138,13 @@ npm run build
 node dist/cli.js .
 ```
 
-Without `--checks`, the CLI runs `duplicates`, `dangling`, and `unowned`. The `syntax` check is opt-in because it requires a GitHub repository and may require authentication.
+Without `--checks`, the CLI runs `duplicates`, `dangling`, `shadowed`, and `unowned`. The `syntax` check is opt-in because it requires a GitHub repository and may require authentication.
 
 Local checks require no network access:
 
 ```shell
 node dist/cli.js . \
-  --checks duplicates,dangling,unowned \
+  --checks duplicates,dangling,shadowed,unowned \
   --exclude dist/ \
   --format json
 ```
@@ -153,7 +153,7 @@ GitHub's syntax check validates a committed branch, tag, or SHA:
 
 ```shell
 GITHUB_TOKEN=ghp_example node dist/cli.js . \
-  --checks syntax,duplicates,dangling,unowned \
+  --checks syntax,duplicates,dangling,shadowed,unowned \
   --repository owner/repository \
   --ref main
 ```

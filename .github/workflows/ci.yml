@@ -39,7 +39,7 @@ jobs:
       - name: Exercise the packaged Action
         uses: ./
         with:
-          checks: duplicates,dangling,unowned
+          checks: duplicates,dangling,shadowed,unowned
 
   dependency-review:
     if: github.event_name == 'pull_request'

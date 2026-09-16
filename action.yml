@@ -15,9 +15,9 @@ inputs:
     description: Explicit CODEOWNERS path for local checks; with syntax it must select GitHub's effective file
     required: false
   checks:
-    description: Comma-separated checks (syntax,duplicates,dangling,unowned)
+    description: Comma-separated checks (syntax,duplicates,dangling,shadowed,unowned)
     required: false
-    default: syntax,duplicates,dangling,unowned
+    default: syntax,duplicates,dangling,shadowed,unowned
   exclude:
     description: Newline-separated gitignore patterns excluded from local file checks
     required: false

@@ -20,7 +20,7 @@ jobs:
       - name: Validate CODEOWNERS
         uses: rarepops/codeowners-guard@v0.1.3
         with:
-          checks: syntax,duplicates,dangling,unowned
+          checks: syntax,duplicates,dangling,shadowed,unowned
           exclude: |
             coverage/
             dist/

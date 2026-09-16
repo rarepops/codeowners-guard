@@ -185,7 +185,7 @@ jobs:
           printf '/owned.txt @fixture-owner\n' > CODEOWNERS
           printf 'owned\n' > owned.txt
           git add CODEOWNERS owned.txt
-          "$cli" . --checks duplicates,dangling,unowned --exclude CODEOWNERS
+          "$cli" . --checks duplicates,dangling,shadowed,unowned --exclude CODEOWNERS
           printf 'unowned\n' > unowned.txt
           git add unowned.txt
           status=0

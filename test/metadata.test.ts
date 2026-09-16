@@ -5,6 +5,8 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse, parseDocument } from "yaml";
 
+import { checkNames } from "../src/model.js";
+
 interface ActionMetadata {
 	inputs: Record<string, unknown>;
 	outputs: Record<string, unknown>;
@@ -50,6 +52,20 @@ describe("GitHub metadata", () => {
 			"valid",
 			"warning-count",
 		]);
+	});
+
+	it("defaults the Action to every check in the documented order", async () => {
+		const source = await readFile(resolve("action.yml"), "utf8");
+		const action = parse(source) as ActionMetadata;
+		const checks = action.inputs.checks as {
+			default: string;
+			description: string;
+		};
+
+		expect(checks.default).toBe(checkNames.join(","));
+		expect(checks.description).toBe(
+			`Comma-separated checks (${checkNames.join(",")})`,
+		);
 	});
 
 	it("parses every workflow without YAML errors", async () => {

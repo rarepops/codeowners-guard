@@ -239,4 +239,46 @@ describe("runAction", () => {
 		);
 		expect(validateRepository).not.toHaveBeenCalled();
 	});
+
+	it("annotates shadowed rules on their CODEOWNERS line", async () => {
+		core.inputs.set("checks", "shadowed");
+		validateRepository.mockResolvedValue({
+			codeownersPath: "CODEOWNERS",
+			issues: [
+				{
+					check: "shadowed",
+					code: "shadowed-rule",
+					severity: "warning",
+					path: "CODEOWNERS",
+					line: 4,
+					message:
+						'Pattern "/tools/" never takes effect: all 2 matching files are overridden by line 5',
+					suggestion:
+						"Remove the rule, or move it below the rules that override it if it should take precedence.",
+				},
+			],
+			issueCount: 1,
+			errorCount: 0,
+			warningCount: 1,
+			stats: { files: 2, rules: 5, matchedRules: 5 },
+		});
+
+		await runAction();
+
+		expect(validateRepository).toHaveBeenCalledWith(
+			expect.objectContaining({ checks: new Set(["shadowed"]) }),
+		);
+		expect(core.warning).toHaveBeenCalledWith(
+			'Pattern "/tools/" never takes effect: all 2 matching files are overridden by line 5 Suggestion: Remove the rule, or move it below the rules that override it if it should take precedence.',
+			expect.objectContaining({
+				title: "CODEOWNERS shadowed",
+				file: "CODEOWNERS",
+				startLine: 4,
+			}),
+		);
+		expect(core.summary.addTable).toHaveBeenCalledWith([
+			expect.anything(),
+			expect.arrayContaining(["warning", "shadowed", "CODEOWNERS:4"]),
+		]);
+	});
 });

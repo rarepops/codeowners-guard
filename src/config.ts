@@ -3,6 +3,7 @@ import { type CheckName, checkNames, type Severity } from "./model.js";
 export const localCheckNames: readonly CheckName[] = [
 	"duplicates",
 	"dangling",
+	"shadowed",
 	"unowned",
 ];
 

@@ -129,7 +129,7 @@ const helpText = `codeowners-guard [repository-path] [options]
 Checks a repository's effective CODEOWNERS file.
 
 Options:
-\x20\x20-c, --checks <list>       Comma-separated checks (default: duplicates,dangling,unowned)
+\x20\x20-c, --checks <list>       Comma-separated checks (default: duplicates,dangling,shadowed,unowned)
 \x20\x20\x20\x20\x20\x20--codeowners <path>   Use a specific CODEOWNERS file for local checks
 \x20\x20\x20\x20\x20\x20--exclude <pattern>   Exclude files from local checks (repeatable)
 \x20\x20\x20\x20\x20\x20--explain <path>      Explain local ownership of a repository-relative file
