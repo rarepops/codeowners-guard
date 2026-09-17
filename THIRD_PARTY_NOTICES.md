@@ -90,7 +90,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 ```
 ---
 
-## ignore 7.0.8
+## ignore 7.0.9
 
 Source: https://github.com/kaelzhang/node-ignore.git
 

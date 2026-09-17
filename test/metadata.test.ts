@@ -162,7 +162,12 @@ describe("GitHub metadata", () => {
 			"undici",
 		]);
 		expect(noticedPackages).toEqual(packageNames);
-		expect(notices).toContain("## ignore 7.0.8");
+		const packageMetadata = JSON.parse(
+			await readFile(resolve("package.json"), "utf8"),
+		) as PackageMetadata;
+		expect(notices).toContain(
+			`## ignore ${packageMetadata.devDependencies.ignore}`,
+		);
 	});
 
 	it("includes the logo and notices in the npm package", async () => {
