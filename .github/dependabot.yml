@@ -1,11 +1,11 @@
 version: 2
 
-# npm packages and workflow pins arrive together in one weekly PR. Security
+# npm packages and workflow pins arrive together in one monthly PR. Security
 # updates still open their own PRs as soon as an advisory lands.
 multi-ecosystem-groups:
   dependencies:
     schedule:
-      interval: weekly
+      interval: monthly
     commit-message:
       prefix: build
 
