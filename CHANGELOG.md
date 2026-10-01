@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.2.1 - 2026-10-01
+
+### Fixed
+
+- Match patterns where a wildcard is followed by more text, such as `*-service/*.yaml`, against every file GitHub matches. Version 0.2.0 missed files like `my-cool-service/x.yaml`, where the part the wildcard covers contains the first character of the text after it, so it could report the rule as `dangling` and the file as `unowned`. Ownership can change for those files, and `shadowed` can report new findings. The fix comes from the bundled `ignore` library, now 7.0.10.
+
+### Security
+
+- Update the bundled `undici` to 6.29.0, which fixes GitHub security advisory GHSA-r53p-7pc4-xj5r (low severity).
+
 ## 0.2.0 - 2026-09-16
 
 ### Added
