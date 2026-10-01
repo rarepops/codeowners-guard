@@ -1,33 +1,29 @@
 version: 2
 
-updates:
-  # Runtime and development packages move together so the lockfile stays easy
-  # to review. Node type majors are excluded because they define the oldest
-  # CLI runtime that TypeScript is allowed to assume.
-  - package-ecosystem: npm
-    directory: /
+# npm packages and workflow pins arrive together in one weekly PR. Security
+# updates still open their own PRs as soon as an advisory lands.
+multi-ecosystem-groups:
+  dependencies:
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
-    groups:
-      npm-dependencies:
-        patterns:
-          - "*"
+    commit-message:
+      prefix: build
+
+updates:
+  # Node type majors are excluded because they define the oldest CLI runtime
+  # that TypeScript is allowed to assume.
+  - package-ecosystem: npm
+    directory: /
+    patterns:
+      - "*"
+    multi-ecosystem-group: dependencies
     ignore:
       - dependency-name: "@types/node"
         update-types:
           - "version-update:semver-major"
-    commit-message:
-      prefix: build
 
-  # Keep every immutable workflow pin current in one reviewable PR.
   - package-ecosystem: github-actions
     directory: /
-    schedule:
-      interval: weekly
-    groups:
-      workflow-actions:
-        patterns:
-          - "*"
-    commit-message:
-      prefix: ci
+    patterns:
+      - "*"
+    multi-ecosystem-group: dependencies
