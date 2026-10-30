@@ -152,7 +152,7 @@ THE SOFTWARE.
 ```
 ---
 
-## undici 6.29.0
+## undici 6.29.1
 
 Source: https://undici.nodejs.org
 
