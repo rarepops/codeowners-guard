@@ -1,1 +1,5 @@
 * @rarepops
+
+# Dependabot security updates touch only the lockfile. Leaving it without an
+# owner stops each one from requesting a review, which is what sends the email.
+/package-lock.json

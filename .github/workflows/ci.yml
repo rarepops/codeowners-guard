@@ -39,7 +39,8 @@ jobs:
       - name: Exercise the packaged Action
         uses: ./
         with:
-          checks: duplicates,dangling,shadowed,unowned
+          # No unowned here: it would flag the lockfile, ownerless on purpose.
+          checks: duplicates,dangling,shadowed
 
   dependency-review:
     if: github.event_name == 'pull_request'
